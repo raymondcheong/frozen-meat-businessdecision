@@ -29,8 +29,11 @@ reg('ch_month').setOption({
   yAxis: [{ type: 'value', axisLabel: { formatter: v => (v / 10000) + '万' } }, { type: 'value' }],
   series: [
     { name: 'GMV（HKD）', type: 'bar', barWidth: 26, data: M.monthly.map(x => x.gmv),
-      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex === 6 ? C.orange : C.tblue },
-      label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(0) + '万', fontSize: 10.5 } },
+      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex >= 6 ? C.orange : C.tblue },
+      label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(0) + '万', fontSize: 10.5 },
+      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 5.5 }],
+        lineStyle: { type: 'dashed', color: '#C9971F', width: 2 },
+        label: { formatter: '口径分界：9月起纳入冻肉', fontSize: 11, color: '#C9971F', position: 'insideStartTop' } } },
     { name: '订单数', type: 'line', yAxisIndex: 1, smooth: true, data: M.monthly.map(x => x.orders),
       lineStyle: { width: 3, color: C.gold }, itemStyle: { color: C.gold } }
   ]
@@ -111,17 +114,24 @@ $('tb_dormant').innerHTML = '<tr><th>客户简称</th><th>属性</th><th style="
     <td class="num" style="text-align:right;color:${C.red};font-weight:700">${d.days} 天</td><td class="num">${d.lastDate}</td></tr>`).join('');
 
 // ==================== m3 异常变动 ====================
+const _anomAll = [...A.smallAnom, ...A.smallDown.map(x => ({ small: x.small, augQty: x.augQty, sepQty: x.sepQty, dqPct: x.dqPct, augAmt: 0, sepAmt: 0, daPct: 0 }))]
+  .sort((a, b) => b.dqPct - a.dqPct);
 reg('ch_anom_small').setOption({
   grid: { left: 100, right: 70, top: 20, bottom: 40 },
-  tooltip: { trigger: 'axis', formatter: p => { const x = A.smallAnom[p[0].dataIndex];
-    return `${x.small}<br/>8月 ${fmt(x.augQty)} kg → 9月 ${fmt(x.sepQty)} kg（<b>${x.dqPct > 0 ? '+' : ''}${x.dqPct}%</b>）<br/>金额 ${fmt(x.augAmt)} → ${fmt(x.sepAmt)} HKD（${x.daPct > 0 ? '+' : ''}${x.daPct}%）`; } },
+  tooltip: { trigger: 'axis', formatter: p => { const x = _anomAll[p[0].dataIndex];
+    return `${x.small}<br/>8月 ${fmt(x.augQty)} kg → 9月 ${fmt(x.sepQty)} kg（<b>${x.dqPct > 0 ? '+' : ''}${x.dqPct}%</b>）`; } },
   xAxis: { type: 'value', name: '销量环比变动（%）' },
-  yAxis: { type: 'category', data: A.smallAnom.map(x => x.small) },
+  yAxis: { type: 'category', data: _anomAll.map(x => x.small) },
   series: [{ type: 'bar', barWidth: 18,
-    data: A.smallAnom.map(x => ({ value: x.dqPct, itemStyle: { color: x.dqPct >= 0 ? C.green : C.red, borderRadius: 4 } })),
+    data: _anomAll.map(x => ({ value: x.dqPct, itemStyle: { color: x.dqPct >= 0 ? C.green : C.red, borderRadius: 4 } })),
     label: { show: true, position: 'right', formatter: p => (p.value > 0 ? '+' : '') + p.value + '%', fontSize: 11, fontWeight: 'bold' },
     markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0 }], lineStyle: { color: '#B8C4D0' } } }]
 });
+$('tb_small_down').innerHTML = '<tr><th>小类</th><th style="text-align:right">8月(kg)</th><th style="text-align:right">9月(kg)</th><th style="text-align:right">跌幅</th><th>可能原因</th></tr>' +
+  A.smallDown.map(x => `<tr><td><b>${x.small}</b><br><span style="font-size:11px;color:#888">${x.mid}</span></td>
+    <td class="num" style="text-align:right">${fmt(x.augQty)}</td><td class="num" style="text-align:right">${fmt(x.sepQty)}</td>
+    <td class="num" style="text-align:right;color:${C.red};font-weight:700">${x.dqPct}%</td>
+    <td style="font-size:11.5px">${x.reason}</td></tr>`).join('');
 reg('ch_anom_new').setOption({
   grid: { left: 110, right: 70, top: 20, bottom: 40 },
   tooltip: { trigger: 'axis', formatter: p => { const x = A.smallNew[p[0].dataIndex];
@@ -161,13 +171,17 @@ $('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:ri
   A.custLost.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.augAmt)} HKD</td></tr>`).join('');
 
 // ==================== m4 关联规则与需求机会 ====================
-$('tb_rules').innerHTML = '<tr><th>产品 A</th><th>产品 B</th><th style="text-align:right">共现订单</th><th style="text-align:right">支持度</th><th style="text-align:right">置信度</th><th style="text-align:right">lift</th></tr>' +
-  M.skuRules.map(r => `<tr><td>${r.a}</td><td>${r.b}</td><td class="num" style="text-align:right">${r.co}</td>
-    <td class="num" style="text-align:right">${r.support}%</td><td class="num" style="text-align:right">${r.confidence}%</td>
+$('tb_rules').innerHTML = '<tr><th>产品 A <span style="font-weight:400;color:#888">（小类）</span></th><th>产品 B <span style="font-weight:400;color:#888">（小类）</span></th><th style="text-align:right">共现</th><th style="text-align:right">置信度</th><th style="text-align:right">lift</th></tr>' +
+  M.skuRules.map(r => `<tr><td>${r.a}<br><span class="grp-tag">${r.aCat || '—'}</span></td><td>${r.b}<br><span class="grp-tag">${r.bCat || '—'}</span></td><td class="num" style="text-align:right">${r.co}</td>
+    <td class="num" style="text-align:right">${r.confidence}%</td>
     <td class="num" style="text-align:right"><b style="color:${C.orange}">${r.lift}</b></td></tr>`).join('');
-$('tb_opps').innerHTML = '<tr><th>类型</th><th>客户</th><th>属性</th><th>机会内容</th></tr>' +
+$('tb_smallrules').innerHTML = '<tr><th>小类 A</th><th>小类 B</th><th style="text-align:right">共现</th><th style="text-align:right">置信度</th><th style="text-align:right">lift</th></tr>' +
+  (M.smallRules || []).map(r => `<tr><td><b>${r.a}</b></td><td><b>${r.b}</b></td><td class="num" style="text-align:right">${r.co}</td>
+    <td class="num" style="text-align:right">${r.confidence}%</td>
+    <td class="num" style="text-align:right"><b style="color:${C.teal}">${r.lift}</b></td></tr>`).join('');
+$('tb_opps').innerHTML = '<tr><th>类型</th><th>客户</th><th>属性</th><th>目标小类</th><th>机会内容</th></tr>' +
   M.opps.slice(0, 25).map(o => `<tr><td><span class="bdg ${o.type === '品类缺口' ? 'bT' : 'bR'}">${o.type}</span></td>
-    <td>${o.cust}</td><td>${o.attr}</td><td style="font-size:12px">${o.text}</td></tr>`).join('');
+    <td>${o.cust}</td><td>${o.attr}</td><td><b>${o.cat || '—'}</b></td><td style="font-size:12px">${o.text}</td></tr>`).join('');
 const FB_KEY = 'fb_track_v5';
 let fbTrack = {};
 try { fbTrack = JSON.parse(localStorage.getItem(FB_KEY) || '{}'); } catch (e) { fbTrack = {}; }
@@ -253,6 +267,7 @@ const AI_MODULES = {
     ] },
   m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '大快活发生了什么？'],
     qa: [
+      { k: ['下跌', '下滑', '跌'], a: '可比口径环比下跌小类 1 个：<b>熟蝦 −71.7%</b>（8月 2,418 kg → 9月 685 kg）；同中类「蝦肉」同期 +31.8% 上涨承接，疑似客户采购从熟蝦切换至蝦肉原料（加工方式偏好变化），建议跟进熟蝦主要买家确认。' },
       { k: ['品类', '小类', '产品'], a: '可比口径（两月均有完整基线）小类异动 2 个：<b>冷凍菜 +60.2%</b>（销量 8,383→13,432 kg）、<b>蝦肉 +31.8%</b>（3,456→4,556 kg）。冻肉品类 8 月无完整基线，单列「新增覆盖」榜：帶皮腿扒 15.7 万 kg、帶骨全腿 10.9 万 kg 领跑。' },
       { k: ['客户', '异动', '谁'], a: '可比口径客户异动 44 户（8月≥1万且金额变动≥25%）。增幅 Top：大快活 +3,936%、大家樂 +3,341%、南光谷豐 +3,221%——主要是 9 月新增冻肉采购带来的结构性放量，散点图可看数量效应 vs 均价（结构）效应分解。' },
       { k: ['大快活', '大家樂', '大家乐'], a: '大快活 8 月基线约 1.1 万 → 9 月约 45 万（+3,936%）：采购数量 +3,900% 为主、均价微升——属<b>数量驱动的放量</b>（新增冻肉品类采购），非价格结构恶化。建议业务员趁热绑定框架协议。' }
