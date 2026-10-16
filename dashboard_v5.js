@@ -29,11 +29,11 @@ reg('ch_month').setOption({
   yAxis: [{ type: 'value', axisLabel: { formatter: v => (v / 10000) + '万' } }, { type: 'value' }],
   series: [
     { name: 'GMV（HKD）', type: 'bar', barWidth: 26, data: M.monthly.map(x => x.gmv),
-      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex >= 6 ? C.orange : C.tblue },
+      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex === 7 ? C.amber : C.tblue },
       label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(0) + '万', fontSize: 10.5 },
-      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 5.5 }],
+      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0.5 }],
         lineStyle: { type: 'dashed', color: '#C9971F', width: 2 },
-        label: { formatter: '口径分界：9月起纳入冻肉', fontSize: 11, color: '#C9971F', position: 'insideStartTop' } } },
+        label: { formatter: '口径分界：4月起公司级全品类', fontSize: 11, color: '#C9971F', position: 'insideStartTop' } } },
     { name: '订单数', type: 'line', yAxisIndex: 1, smooth: true, data: M.monthly.map(x => x.orders),
       lineStyle: { width: 3, color: C.gold }, itemStyle: { color: C.gold } }
   ]
@@ -134,11 +134,11 @@ $('tb_small_down').innerHTML = '<tr><th>小类</th><th style="text-align:right">
     <td style="font-size:11.5px">${x.reason}</td></tr>`).join('');
 reg('ch_anom_new').setOption({
   grid: { left: 110, right: 70, top: 20, bottom: 40 },
-  tooltip: { trigger: 'axis', formatter: p => { const x = A.smallNew[p[0].dataIndex];
-    return `${x.small}<br/>9月销量 <b>${fmt(x.sepQty)} kg</b> · 金额 ${fmt(x.sepAmt)} HKD<br/>${x.note || ''}`; } },
+  tooltip: { trigger: 'axis', formatter: p => { const x = A.sepTop[p[0].dataIndex];
+    return `${x.small}<br/>9月销量 <b>${fmt(x.sepQty)} kg</b> · 金额 ${fmt(x.sepAmt)} HKD`; } },
   xAxis: { type: 'value', axisLabel: { formatter: v => (v / 1000) + 'k' } },
-  yAxis: { type: 'category', data: A.smallNew.map(x => x.small) },
-  series: [{ type: 'bar', barWidth: 16, data: A.smallNew.map(x => x.sepQty),
+  yAxis: { type: 'category', data: A.sepTop.map(x => x.small) },
+  series: [{ type: 'bar', barWidth: 16, data: A.sepTop.map(x => x.sepQty),
     itemStyle: { color: C.tblue, borderRadius: [0, 5, 5, 0] },
     label: { show: true, position: 'right', formatter: p => fmt(p.value), fontSize: 10.5 } }]
 });
@@ -257,7 +257,7 @@ const AI_MODULES = {
     qa: [
       { k: ['盘子', 'gmv', '销售额', '多少'], a: '2026-03-02 ~ 10-10 整体已登记订单：GMV <b>4,354.3 万 HKD</b>、订单 <b>10,865 张</b>、客单价 <b>4,008 HKD</b>、动销客户 <b>379 户</b>、总销量约 4,960 吨。口径：全渠道（含手机订单），按要货单号去重。' },
       { k: ['手机', '占比', '移动'], a: '手机订单占比持续爬坡：单量占比从 3 月 0% 升至 <b>9 月 7.8%</b>（427/5,474 单），金额占比 3.6%；10 月至今单量占比 7.3%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。' },
-      { k: ['9月', '暴增', '增长', '环比'], a: '9 月 GMV 2,538 万 vs 8 月 287 万（+784%）——注意<b>口径扩展</b>：8 月明细仅水产＋终端冻品，9 月周度明细新增冻肉品类覆盖，增幅大部分来自覆盖范围扩大；可比口径的结构性异动请见模块 3「异常变动」。' }
+      { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径，4 月起含冻肉全量）。结构性异动见模块 3。' }
     ] },
   m2: { name: '客户需求分析与产品机会洞察', chips: ['高价值客户有哪些？', '沉睡客户怎么唤回？', '哪个属性客单价最高？'],
     qa: [
@@ -267,10 +267,10 @@ const AI_MODULES = {
     ] },
   m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '大快活发生了什么？'],
     qa: [
-      { k: ['下跌', '下滑', '跌'], a: '可比口径环比下跌小类 1 个：<b>熟蝦 −71.7%</b>（8月 2,418 kg → 9月 685 kg）；同中类「蝦肉」同期 +31.8% 上涨承接，疑似客户采购从熟蝦切换至蝦肉原料（加工方式偏好变化），建议跟进熟蝦主要买家确认。' },
-      { k: ['品类', '小类', '产品'], a: '可比口径（两月均有完整基线）小类异动 2 个：<b>冷凍菜 +60.2%</b>（销量 8,383→13,432 kg）、<b>蝦肉 +31.8%</b>（3,456→4,556 kg）。冻肉品类 8 月无完整基线，单列「新增覆盖」榜：帶皮腿扒 15.7 万 kg、帶骨全腿 10.9 万 kg 领跑。' },
-      { k: ['客户', '异动', '谁'], a: '可比口径客户异动 44 户（8月≥1万且金额变动≥25%）。增幅 Top：大快活 +3,936%、大家樂 +3,341%、南光谷豐 +3,221%——主要是 9 月新增冻肉采购带来的结构性放量，散点图可看数量效应 vs 均价（结构）效应分解。' },
-      { k: ['大快活', '大家樂', '大家乐'], a: '大快活 8 月基线约 1.1 万 → 9 月约 45 万（+3,936%）：采购数量 +3,900% 为主、均价微升——属<b>数量驱动的放量</b>（新增冻肉品类采购），非价格结构恶化。建议业务员趁热绑定框架协议。' }
+      { k: ['下跌', '下滑', '跌'], a: '环比下跌小类 10 个，最深：<b>豬軟骨 −99.9%</b>、豬肚 −98.9%、金錢展 −94.4%、牛肋骨肉 −93.9%——多数被同中类大盘品类承接（如四號肉 4.4→5.9 万 kg、牛胸腩 1.0→5.1 万 kg），属采购向主流规格集中；熟蝦 −71.7% 则被蝦肉承接（加工偏好切换）。' },
+      { k: ['品类', '小类', '产品'], a: '上涨异动 Top：<b>牛胸腩 +403.6%</b>（1.0→5.1 万 kg）、肋排 +210.9%、牛霖 +164.8%、整鴨 +131.1%——大盘价跌中的逆势放量品类，多与牛肉/禽类旺季备货有关；下跌侧见「环比下跌小类」卡。' },
+      { k: ['客户', '异动', '谁'], a: '可比口径客户异动 110 户。增幅 Top：香港美食 +634%（数量+587%为主）、振興凍肉 +571%、南光谷豐 +466%；下滑侧请关注「8月活跃9月未购」12 户——有成拓展（历史 139.6 万、46 天未下单）优先级最高。' },
+      { k: ['大快活', '大家樂', '大家乐', '香港美食'], a: '香港美食 8 月 6.3 万 → 9 月 46.0 万（+634%）：采购数量 +587% 为主、均价 +6.8%——<b>数量驱动的放量</b>且结构稳定偏优，建议业务员趁热绑定框架协议；此类「量价齐升」客户在散点图右上区。' }
     ] },
   m4: { name: '关联规则与需求机会', chips: ['有哪些组合销售机会？', '首购警示有多少？'],
     qa: [
@@ -325,4 +325,28 @@ function aiAsk() {
 }
 $('aiSend').onclick = aiAsk;
 $('aiText').addEventListener('keydown', e => { if (e.key === 'Enter') aiAsk(); });
+
+// ==================== 数据更新中心 ====================
+(function () {
+  const drawer = $('syncDrawer'), mask = $('syncMask');
+  const open = () => { drawer.classList.add('on'); mask.classList.add('on'); renderSync(); };
+  const close = () => { drawer.classList.remove('on'); mask.classList.remove('on'); };
+  $('btnSync').onclick = open; mask.onclick = close; $('syncClose').onclick = close;
+  function renderSync() {
+    const meta = M.meta;
+    $('syncBody').innerHTML = `
+      <div class="logic" style="margin-top:0"><b>数据状态</b>：最新更新 <b>${meta.updatedAt || '—'}</b> ｜ 数据期间 ${meta.period} ｜ 数据源 ${meta.fileCount || '—'} 个文件<br>
+      订单 ${M.kpi.orders.toLocaleString()} 张 · GMV ${(M.kpi.gmv / 10000).toFixed(1)} 万 HKD</div>
+      <h3 style="margin:16px 0 6px">① 手动更新</h3>
+      <div style="font-size:12.5px;line-height:1.9;color:#5B6B7F">在 WorkBuddy 对话中说「<b>更新中控台数据</b>」即可立即执行完整同步（校验→备份→重算→刷新）；或在本机运行：<br>
+      <code style="background:#F0F6FB;padding:4px 8px;border-radius:6px;font-size:11.5px">python analysis/update_data.py</code></div>
+      <h3 style="margin:16px 0 6px">② 定时自动更新</h3>
+      <div style="font-size:12.5px;line-height:1.9;color:#5B6B7F">已配置<b>每工作日 08:30 自动同步</b>（WorkBuddy 自动化任务「ESHOP中控台数据同步」）；频率可在自动化设置中调整（每日/每周/自定义）。</div>
+      <h3 style="margin:16px 0 6px">③ 数据校验与回滚</h3>
+      <div style="font-size:12.5px;line-height:1.9;color:#5B6B7F">更新前验证：文件可读性、必需列、行数下限、日期解析率、GMV 与上版偏差（>50% 阻断）；异常时自动回滚至上一版指标并重新生成看板，全程写入 <code style="background:#F0F6FB;padding:2px 6px;border-radius:5px;font-size:11px">sync_log.jsonl</code> 日志。</div>
+      <h3 style="margin:16px 0 6px">④ 数据源文件清单</h3>
+      <div style="font-size:12px;line-height:1.9;color:#5B6B7F;max-height:180px;overflow-y:auto">${(meta.dataFiles || []).map(f => '· ' + f).join('<br>') || '见 OneDrive/ESHOP 目录'}</div>`;
+  }
+})();
+
 aiSetModule('m1', false);
