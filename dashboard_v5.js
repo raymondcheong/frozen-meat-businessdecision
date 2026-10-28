@@ -287,26 +287,177 @@ $('tb_over').innerHTML = '<tr><th>SKU</th><th>中类 / 小类</th><th>仓库分�
       <td style="font-size:11.5px">${sug}</td></tr>`;
   }).join('');
 
-// ④ 应买未买目标客户
-$('tb_target').innerHTML = '<tr><th>积压 SKU</th><th>目标客户</th><th>客户属性</th>' +
-  '<th style="text-align:right">近90天同类采购(kg)</th><th style="text-align:right">同属性客户已购比例</th>' +
-  '<th style="text-align:right">同类客户购货量(kg)</th><th>判断依据</th></tr>' +
-  INV.overstock.map(o => {
+// ④ 积压小类 · 应买未买目标客户（小类级）
+$('tb_target').innerHTML = '<tr><th>积压小类 / 中类</th><th style="text-align:right">库存量(kg)</th><th style="text-align:right">可售月数</th>' +
+  '<th>同属性已购覆盖</th><th>目标客户（未购该小类）</th><th>客户属性</th>' +
+  '<th style="text-align:right">近90天采购额(HKD)</th><th>判断依据</th></tr>' +
+  ((INV.overSmall || []).map(o => {
     if (!o.targets || !o.targets.length) return '';
-    const rows = o.targets.map((t, i) => {
-      const basis = `已买「${o.small}」${fmt(t.qty90)} kg，未进本品；同属性 ${t.cover}% 客户已购`;
-      return `<tr${i === 0 ? ' style="border-top:2px solid #D8E0EA"' : ''}>
-        ${i === 0 ? `<td rowspan="${o.targets.length}" style="font-size:12px;vertical-align:top">${o.name}<br/>
-          <span style="color:#8A97A6;font-size:11px">库存 ${fmt(o.qty)} kg · 可售 ${o.monthsCover == null ? '无出货' : o.monthsCover + ' 月'}</span></td>` : ''}
-        <td><b>${t.cust}</b></td>
-        <td style="font-size:11.5px">${t.attr}</td>
-        <td class="num" style="text-align:right">${fmt(t.qty90)}</td>
-        <td class="num" style="text-align:right">${t.cover}%</td>
-        <td class="num" style="text-align:right">${fmt(t.peerQty)}</td>
-        <td style="font-size:11.5px;color:#5B6B7F">${basis}</td></tr>`;
+    return o.targets.map((t, i) => `<tr${i === 0 ? ' style="border-top:2px solid #D8E0EA"' : ''}>
+      ${i === 0 ? `<td rowspan="${o.targets.length}" style="vertical-align:top"><b>${o.small}</b><br/>
+        <span style="color:#8A97A6;font-size:11px">${o.mid} · ${o.skuCount} 个 SKU</span></td>
+        <td rowspan="${o.targets.length}" class="num" style="text-align:right;vertical-align:top"><b>${fmt(o.qty)}</b></td>
+        <td rowspan="${o.targets.length}" class="num" style="text-align:right;vertical-align:top;color:${o.monthsCover >= 12 ? C.red : C.amber};font-weight:700">${o.monthsCover == null ? '无出货' : o.monthsCover + ' 月'}</td>
+        <td rowspan="${o.targets.length}" style="vertical-align:top;font-size:11.5px">${(o.attrs || []).slice(0, 3).map(a => `${a.attr} <b>${a.buyers}/${a.total}</b>（${a.cover}%）`).join('<br/>')}</td>` : ''}
+      <td><b>${t.cust}</b></td>
+      <td style="font-size:11.5px">${t.attr}</td>
+      <td class="num" style="text-align:right">${fmt(t.amt90)}</td>
+      <td style="font-size:11.5px;color:#5B6B7F">同属性 ${t.buyers}/${t.total} 户（${t.cover}%）已购该小类，该客户未购</td></tr>`).join('');
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:#8A97A6;padding:18px">暂无积压小类</td></tr>');
+
+// ==================== m5 库存缺货预警（可筛选/排序/分页/导出/明细） ====================
+(function () {
+  const INV_S = INV.skuSales || { months: [], data: {} };
+  const MONTHS = INV_S.months || [], SDATA = INV_S.data || {};
+  const LV_TEXT = { out: '断货', high: '高风险', mid: '中风险', low: '低风险' };
+  const LV_CLS = { out: 'lv-out', high: 'lv-high', mid: 'lv-mid', low: 'lv-low' };
+  const st = { rows: [], page: 1, size: 10, sort: 'level', dir: 1, open: null, key: '' };
+
+  // 筛选器选项
+  const mids = [...new Set((INV.shortage || []).map(x => x.mid).filter(Boolean))].sort();
+  $('sh_mid').innerHTML = '<option value="all">全部类别</option>' + mids.map(m => `<option value="${m}">${m}</option>`).join('');
+  const whs = [...new Set((INV.shortage || []).flatMap(x => Object.keys(x.whs || {})))];
+  $('sh_wh').innerHTML = '<option value="all">全部仓库</option>' + whs.map(w => `<option value="${w}">${w}</option>`).join('');
+
+  function monthlyAvg(code, n) {
+    const arr = SDATA[code] || [];
+    const idx = MONTHS.length - n;
+    const vals = arr.slice(Math.max(0, idx));
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  }
+
+  function compute() {
+    const n = +(document.getElementById('sh_win').value || 3);
+    const lowQty = +(document.getElementById('sh_qty').value || 1500);
+    const lowCover = +(document.getElementById('sh_cover').value || 1);
+    const mid = $('sh_mid').value, wh = $('sh_wh').value, lv = $('sh_level').value;
+    const out = [];
+    (INV.shortage || []).forEach(x => {
+      if (mid !== 'all' && x.mid !== mid) return;
+      if (wh !== 'all' && !(x.whs && x.whs[wh])) return;
+      const mavg = x.qty === 0 ? monthlyAvg(x.code, n) : monthlyAvg(x.code, n) || x.monthly || 0;
+      if (mavg < 50) return;
+      const mc = x.qty > 0 ? x.qty / mavg : 0;
+      let level;
+      if (x.qty === 0) level = 'out';
+      else if (mc < 0.3) level = 'high';
+      else if (mc < lowCover) level = 'mid';
+      else if (x.qty < lowQty) level = 'low';
+      else return;                        // 库存充足且可售充足 → 不进预警
+      if (lv !== 'all' && level !== lv) return;
+      out.push({ ...x, mavg: Math.round(mavg), mc: +mc.toFixed(2), level });
+    });
+    st.rows = out;
+    st.page = 1;
+    render();
+  }
+
+  function sorted() {
+    const r = [...st.rows];
+    const k = st.sort, d = st.dir;
+    const rank = { out: 0, high: 1, mid: 2, low: 3 };
+    r.sort((a, b) => {
+      let va, vb;
+      if (k === 'level') { va = rank[a.level]; vb = rank[b.level]; }
+      else if (k === 'name') { va = a.name; vb = b.name; }
+      else if (k === 'mid') { va = (a.mid || '') + a.small; vb = (b.mid || '') + b.small; }
+      else { va = a[k]; vb = b[k]; }
+      if (typeof va === 'string') return va.localeCompare(vb, 'zh') * d;
+      return (va - vb) * d;
+    });
+    return r;
+  }
+
+  function render() {
+    const rows = sorted();
+    const total = rows.length, pages = Math.max(1, Math.ceil(total / st.size));
+    st.page = Math.min(st.page, pages);
+    const slice = rows.slice((st.page - 1) * st.size, st.page * st.size);
+    const arrow = k => st.sort === k ? (st.dir > 0 ? ' ▲' : ' ▼') : '';
+    let html = '<tr>' +
+      `<th class="sortable" data-k="name">商品名称${arrow('name')}</th>` +
+      `<th class="sortable" data-k="mid">中类 / 小类${arrow('mid')}</th>` +
+      '<th>仓库分布</th>' +
+      `<th class="sortable" style="text-align:right" data-k="qty">当前库存(kg)${arrow('qty')}</th>` +
+      `<th class="sortable" style="text-align:right" data-k="mavg">历史月均消耗(kg)${arrow('mavg')}</th>` +
+      `<th class="sortable" style="text-align:right" data-k="mc">可售月数${arrow('mc')}</th>` +
+      `<th class="sortable" data-k="level">缺货风险${arrow('level')}</th>` +
+      '<th>明细</th></tr>';
+    html += slice.map(x => {
+      const wh = Object.entries(x.whs || {}).map(([k, v]) => `${k} ${fmt(v)}`).join(' · ') || '—';
+      const isOpen = st.open === x.code;
+      let row = `<tr>
+        <td style="font-size:12px"><b>${x.name}</b><br/><span style="color:#8A97A6;font-size:10.5px">${x.code}</span></td>
+        <td style="font-size:11.5px">${x.mid || '—'}<br/><span style="color:#8A97A6">${x.small || '—'}</span></td>
+        <td style="font-size:11.5px">${wh}</td>
+        <td class="num" style="text-align:right"><b>${fmt(x.qty)}</b></td>
+        <td class="num" style="text-align:right">${fmt(x.mavg)}</td>
+        <td class="num" style="text-align:right;font-weight:700;color:${x.mc < 0.3 ? C.red : (x.mc < 1 ? C.amber : C.green)}">${x.mc}</td>
+        <td><span class="lv ${LV_CLS[x.level]}">${LV_TEXT[x.level]}</span></td>
+        <td><button class="det-btn" data-code="${x.code}" style="border:1px solid #D3DFEA;background:#fff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;color:#0B5E8F">${isOpen ? '收起' : '查看'}</button></td></tr>`;
+      if (isOpen) {
+        const bars = MONTHS.map((m, i) => {
+          const v = (SDATA[x.code] || [])[i] || 0;
+          const w = Math.min(100, (v / Math.max(1, x.mavg)) * 30);
+          return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:52px;color:#7A8899">${m.slice(2)}</span>
+            <span style="flex:1;height:9px;background:#E7EEF6;border-radius:5px;overflow:hidden"><span style="display:block;width:${w}%;height:100%;background:#0B5E8F"></span></span>
+            <span style="width:62px;text-align:right">${fmt(v)} kg</span></div>`;
+        }).join('');
+        row += `<tr class="det-row"><td colspan="8"><div class="det-grid">
+          <div class="det-box"><b>库存明细</b><br/>
+            商品编码：${x.code}<br/>仓库分布：${wh}<br/>
+            当前库存：<b>${fmt(x.qty)} kg</b>　历史月均消耗：${fmt(x.mavg)} kg　可售：${x.mc} 月<br/>
+            最早到期：${x.expiry || '无批次数据'}${x.daysToExpiry != null ? `（${x.daysToExpiry} 天后）` : ''}<br/>
+            风险判定：${LV_TEXT[x.level]}${x.qty === 0 ? '（现货表无库存记录）' : ''}</div>
+          <div class="det-box"><b>近 ${MONTHS.length} 个月出货</b>${bars}</div></div></td></tr>`;
+      }
+      return row;
     }).join('');
-    return rows;
-  }).join('');
+    $('tb_short').innerHTML = html;
+
+    // 排序事件
+    document.querySelectorAll('#tb_short th.sortable').forEach(th => th.onclick = () => {
+      const k = th.dataset.k;
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = (k === 'level' || k === 'name' || k === 'mid') ? 1 : -1; }
+      render();
+    });
+    // 明细事件
+    document.querySelectorAll('#tb_short .det-btn').forEach(b => b.onclick = () => {
+      st.open = st.open === b.dataset.code ? null : b.dataset.code; render();
+    });
+
+    // 分页
+    let pg = `<span>共 ${total} 条 · 第 ${st.page}/${pages} 页</span>`;
+    pg += `<button id="sh_prev" ${st.page === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = Math.max(1, st.page - 2); i <= Math.min(pages, st.page + 2); i++) pg += `<button class="pg" data-p="${i}" ${i === st.page ? 'on' : ''}>${i}</button>`;
+    pg += `<button id="sh_next" ${st.page === pages ? 'disabled' : ''}>下一页</button>`;
+    $('sh_pager').innerHTML = pg;
+    const prev = $('sh_prev'), next = $('sh_next');
+    if (prev) prev.onclick = () => { st.page--; render(); };
+    if (next) next.onclick = () => { st.page++; render(); };
+    document.querySelectorAll('#sh_pager .pg').forEach(b => b.onclick = () => { st.page = +b.dataset.p; render(); });
+  }
+
+  $('sh_apply').onclick = compute;
+  $('sh_reset').onclick = () => {
+    $('sh_mid').value = 'all'; $('sh_wh').value = 'all'; $('sh_win').value = '3';
+    $('sh_level').value = 'all'; $('sh_qty').value = INV.threshold.lowQty; $('sh_cover').value = INV.threshold.lowCover;
+    compute();
+  };
+  $('sh_export').onclick = () => {
+    const head = ['商品编码', '商品名称', '中类', '小类', '仓库分布', '当前库存(kg)', '历史月均消耗(kg)', '可售月数', '缺货风险', '最早到期'];
+    const lines = [head.join(',')];
+    sorted().forEach(x => lines.push([x.code, `"${x.name}"`, x.mid || '', x.small || '',
+      `"${Object.entries(x.whs || {}).map(([k, v]) => k + ' ' + v).join(' / ')}"`,
+      x.qty, x.mavg, x.mc, LV_TEXT[x.level], x.expiry || ''].join(',')));
+    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `库存缺货预警_${INV.meta.date}.csv`;
+    a.click();
+  };
+  compute();
+})();
 
 $('tb_forecast').innerHTML = '<tr><th>SKU</th><th style="text-align:right">近3月月均(kg)</th><th style="text-align:right">趋势因子</th><th style="text-align:right">10月预测(kg)</th><th>备货建议</th></tr>' +
   M.forecast.slice(0, 10).map(f => `<tr><td>${f.name}</td><td class="num" style="text-align:right">${fmt(f.avg3)}</td>
@@ -378,14 +529,18 @@ const AI_MODULES = {
       { k: ['组合', '关联', '连带'], a: `有效关联规则 ${M.skuRules.length} 条（共现≥30 单）：` + M.skuRules.slice(0, 3).map(r => `${r.a.split('｜')[0]}×${r.b.split('｜')[0]}（lift ${r.lift}）`).join('；') + '。多 SKU 订单占比 25.8%，组合装空间大。' },
       { k: ['首购', '初次'], a: `近 60 天老客户首购新产品 <b>${M.firstBuy.length.toLocaleString()} 条</b>（整体口径客户基数大）。页面展示最新 50 条，业务员 3 日回访制，状态本地可追踪。` }
     ] },
-  m5: { name: '库存预警与供应链', chips: ['10月该备什么货？', '库存数据是真实的吗？', '哪些货积压了？', '积压货该找谁推？'],
+  m5: { name: '库存预警与供应链', chips: ['哪些货快断货了？', '库存数据是真实的吗？', '哪些货积压了？', '积压小类该找谁推？'],
     qa: [
-      { k: ['10月', '预测', '备货'], a: '10 月需求预测 Top3（真实销量×趋势因子）：' + M.forecast.slice(0, 3).map(f => `${f.name} ${fmt(f.oct_forecast)} kg（趋势 ${f.trend}）`).join('、') + '。趋势 >1.2 的 SKU 提前备货。' },
+      { k: ['缺货', '断货', '补货', '预警'], a: (() => { const s = INV.shortage || [];
+          const out = s.filter(x => x.level === 'out').length, hi = s.filter(x => x.level === 'high').length;
+          const top = s.slice(0, 3).map(x => `${x.name.split('|')[0]}（库存 ${fmt(x.qty)} kg / 月耗 ${fmt(x.monthly)} kg）`).join('、');
+          return `缺货预警共 <b>${s.length} 个 SKU</b>：断货 ${out} 个、高风险 ${hi} 个。优先关注：${top}。判定＝库存低于阈值或可售月数低于覆盖月数，可在「库存缺货预警」按类别/仓库/时间段筛选并调整参数。`; })() },
       { k: ['真实', '模拟', '库存'], a: `库存为<b>真实数据</b>：取自 ${INV.meta.date} 现货表（${INV.meta.file}），合计 <b>${INV.kpis.qtyTon} 吨</b>、${INV.kpis.skuCount} 个在库 SKU，仓库按其士倉 / 沙田二倉归集；金额按采购成本计价（覆盖 ${INV.meta.costCoverage}% 库存量）。` },
       { k: ['积压', '呆滞', '去化'], a: (() => { const o = INV.overstock[0];
           return `积压判定＝现有量 ≥${INV.threshold.minQty} kg 且可售 ≥${INV.threshold.minMonths} 个月，共 <b>${INV.overstock.length} 个 SKU</b>、${fmt(INV.overstock.reduce((s, x) => s + x.qty, 0))} kg（占总量 ${(INV.overstock.reduce((s, x) => s + x.qty, 0) / INV.kpis.qtyKg * 100).toFixed(1)}%）。最重的「${o.name.split('|')[0]}」库存 ${fmt(o.qty)} kg、可售 ${o.monthsCover == null ? '无出货' : o.monthsCover + ' 个月'}。`; })() },
-      { k: ['谁', '客户', '推', '应买未买'], a: (() => { const o = INV.overstock[0]; const t = o.targets[0];
-          return `「${o.name.split('|')[0]}」应买未买目标：<b>${t.cust}</b>（${t.attr}）——近 90 天已买同小类「${o.small}」${fmt(t.qty90)} kg，但未进本品；同属性客户 ${t.cover}% 已购。另有 ${o.candCount} 户同类候选，详见表格。`; })() }
+      { k: ['谁', '客户', '推', '应买未买', '小类'], a: (() => { const o = (INV.overSmall || [])[0]; if (!o || !o.targets.length) return '暂无积压小类目标客户。';
+          const t = o.targets[0];
+          return `积压小类「<b>${o.small}</b>」（库存 ${fmt(o.qty)} kg、可售 ${o.monthsCover == null ? '无出货' : o.monthsCover + ' 个月'}）应买未买：<b>${t.cust}</b>（${t.attr}）——同属性 ${t.buyers}/${t.total} 户（${t.cover}%）已购该小类，该客户近 90 天未购，采购规模 ${fmt(t.amt90)} HKD。另有 ${o.candCount} 户同类候选。`; })() }
     ] },
   m6: { name: '市場洞察', chips: ['猪价怎么走？', '羊肉有什么政策变化？', '信息源有哪些？'],
     qa: [
