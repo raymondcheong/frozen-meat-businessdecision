@@ -1,6 +1,8 @@
 // ESHOP 中控台 v5 渲染逻辑（整体数据口径）
 const M = D.M, MKT = D.MKT, V2 = D.V2;
 const A = M.anomaly;
+const m9 = M.monthly.find(x => x.m === '2026-09') || M.monthly[M.monthly.length - 1];
+const mLast = M.monthly[M.monthly.length - 1];
 const $ = id => document.getElementById(id);
 const mk = id => echarts.init($(id));
 const fmt = n => Math.round(n).toLocaleString();
@@ -29,11 +31,8 @@ reg('ch_month').setOption({
   yAxis: [{ type: 'value', axisLabel: { formatter: v => (v / 10000) + '万' } }, { type: 'value' }],
   series: [
     { name: 'GMV（HKD）', type: 'bar', barWidth: 26, data: M.monthly.map(x => x.gmv),
-      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex === 7 ? C.amber : C.tblue },
-      label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(0) + '万', fontSize: 10.5 },
-      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0.5 }],
-        lineStyle: { type: 'dashed', color: '#C9971F', width: 2 },
-        label: { formatter: '口径分界：4月起公司级全品类', fontSize: 11, color: '#C9971F', position: 'insideStartTop' } } },
+      itemStyle: { borderRadius: [6, 6, 0, 0], color: p => p.dataIndex === M.monthly.length - 1 ? C.amber : C.tblue },
+      label: { show: true, position: 'top', formatter: p => (p.value / 10000).toFixed(0) + '万', fontSize: 10.5 } },
     { name: '订单数', type: 'line', yAxisIndex: 1, smooth: true, data: M.monthly.map(x => x.orders),
       lineStyle: { width: 3, color: C.gold }, itemStyle: { color: C.gold } }
   ]
@@ -255,15 +254,15 @@ renderMkt();
 const AI_MODULES = {
   m1: { name: '销售概览', chips: ['这个月整体盘子多大？', '手机订单占比趋势如何？', '9月为什么暴增？'],
     qa: [
-      { k: ['盘子', 'gmv', '销售额', '多少'], a: '2026-03-02 ~ 10-10 整体已登记订单：GMV <b>4,354.3 万 HKD</b>、订单 <b>10,865 张</b>、客单价 <b>4,008 HKD</b>、动销客户 <b>379 户</b>、总销量约 4,960 吨。口径：全渠道（含手机订单），按要货单号去重。' },
-      { k: ['手机', '占比', '移动'], a: '手机订单占比持续爬坡：单量占比从 3 月 0% 升至 <b>9 月 7.8%</b>（427/5,474 单），金额占比 3.6%；10 月至今单量占比 7.3%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。' },
-      { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径，4 月起含冻肉全量）。结构性异动见模块 3。' }
+      { k: ['盘子', 'gmv', '销售额', '多少'], a: `${M.meta.firstDate} ~ ${M.meta.lastDate} 整体已登记订单：GMV <b>${(M.kpi.gmv / 10000).toFixed(1)} 万 HKD</b>、订单 <b>${M.kpi.orders.toLocaleString()} 张</b>、客单价 <b>${M.kpi.aov.toLocaleString()} HKD</b>、动销客户 <b>${M.kpi.custs} 户</b>、总销量约 ${Math.round(M.kpi.qty / 1000).toLocaleString()} 吨。口径：全渠道（含手机订单），按要货单号去重。` },
+      { k: ['手机', '占比', '移动'], a: `手机订单占比持续爬坡：单量占比从 ${M.monthly[0].m.slice(5)} 月 ${M.monthly[0].mobOrdersPct}% 升至 <b>9 月 ${m9.mobOrdersPct}%</b>（${m9.mobOrders.toLocaleString()}/${m9.orders.toLocaleString()} 单），金额占比 ${m9.mobAmtPct}%；${mLast.m.slice(5)} 月单量占比 ${mLast.mobOrdersPct}%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。` },
+      { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径）。结构性异动见模块 3。' }
     ] },
   m2: { name: '客户需求分析与产品机会洞察', chips: ['高价值客户有哪些？', '沉睡客户怎么唤回？', '哪个属性客单价最高？'],
     qa: [
-      { k: ['高价值', '分层', 'top'], a: '高价值客户 <b>94 户（24.8%）贡献 84.2% GMV</b>（3,668 万 HKD）。Top3：' + M.topCustomers.slice(0, 3).map(c => `${c.short}（${(c.amt / 10000).toFixed(0)}万）`).join('、') + '。' },
+      { k: ['高价值', '分层', 'top'], a: `高价值客户 <b>${M.tierStat['高价值客户'].count} 户（${M.tierStat['高价值客户'].countPct}%）贡献 ${M.tierStat['高价值客户'].amtPct}% GMV</b>（${(M.tierStat['高价值客户'].amt / 10000).toFixed(0)} 万 HKD）。Top3：` + M.topCustomers.slice(0, 3).map(c => `${c.short}（${(c.amt / 10000).toFixed(0)}万）`).join('、') + '。' },
       { k: ['沉睡', '唤回', '流失'], a: `沉睡客户（>30 天未下单）<b>${M.dormantCount} 户</b>，历史贡献 ${(M.dormantAmt / 10000).toFixed(1)} 万 HKD。优先唤回：` + M.dormant.slice(0, 3).map(d => `${d.short}（${d.days}天/${(d.amt / 10000).toFixed(1)}万）`).join('、') + '。' },
-      { k: ['属性', '客单价', '业态'], a: '属性客单价：' + M.attrAov.slice(0, 4).map(x => `${x.attr} ${fmt(x.aov)}`).join(' > ') + ' HKD；虚线为整体 4,008。零售超市/KA 餐饮为最高单值人群。' }
+      { k: ['属性', '客单价', '业态'], a: '属性客单价：' + M.attrAov.slice(0, 4).map(x => `${x.attr} ${fmt(x.aov)}`).join(' > ') + ` HKD；虚线为整体 ${M.kpi.aov.toLocaleString()}。零售超市/KA 餐饮为最高单值人群。` }
     ] },
   m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '大快活发生了什么？'],
     qa: [
@@ -274,7 +273,7 @@ const AI_MODULES = {
     ] },
   m4: { name: '关联规则与需求机会', chips: ['有哪些组合销售机会？', '首购警示有多少？'],
     qa: [
-      { k: ['组合', '关联', '连带'], a: '有效关联规则 5 条（共现≥30 单）：八合里牛肉丸×牛筋丸（lift 20.4、共现 72 单）最强；遼寧盛佳康帶皮腿扒×小雞胸肉（lift 12.4）；高峰四號肉×金鷹面精肉（lift 7.7）。多 SKU 订单占比 25.8%，组合装空间大。' },
+      { k: ['组合', '关联', '连带'], a: `有效关联规则 ${M.skuRules.length} 条（共现≥30 单）：` + M.skuRules.slice(0, 3).map(r => `${r.a.split('｜')[0]}×${r.b.split('｜')[0]}（lift ${r.lift}）`).join('；') + '。多 SKU 订单占比 25.8%，组合装空间大。' },
       { k: ['首购', '初次'], a: `近 60 天老客户首购新产品 <b>${M.firstBuy.length.toLocaleString()} 条</b>（整体口径客户基数大）。页面展示最新 50 条，业务员 3 日回访制，状态本地可追踪。` }
     ] },
   m5: { name: '库存预警与供应链', chips: ['10月该备什么货？', '库存数据是真实的吗？'],
