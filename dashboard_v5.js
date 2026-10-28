@@ -142,15 +142,6 @@ reg('ch_anom_new').setOption({
     itemStyle: { color: C.tblue, borderRadius: [0, 5, 5, 0] },
     label: { show: true, position: 'right', formatter: p => fmt(p.value), fontSize: 10.5 } }]
 });
-$('tb_anom_cust').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">8月销售额</th><th style="text-align:right">9月销售额</th><th style="text-align:right">金额变动</th><th style="text-align:right">数量变动</th><th style="text-align:right">均价变动</th><th>原因判定</th></tr>' +
-  A.custAnom.slice(0, 20).map(x => `<tr>
-    <td><b>${x.short}</b></td>
-    <td class="num" style="text-align:right">${fmt(x.augAmt)}</td>
-    <td class="num" style="text-align:right">${fmt(x.sepAmt)}</td>
-    <td class="num" style="text-align:right;color:${x.daPct >= 0 ? C.green : C.red};font-weight:700">${x.daPct > 0 ? '+' : ''}${x.daPct}%</td>
-    <td class="num" style="text-align:right">${x.dqPct > 0 ? '+' : ''}${x.dqPct}%</td>
-    <td class="num" style="text-align:right">${x.dpPct > 0 ? '+' : ''}${x.dpPct}%</td>
-    <td style="font-size:12px">${x.cause}</td></tr>`).join('');
 $('tb_cust_new').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">9月销售额</th></tr>' +
   A.custNew.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.sepAmt)} HKD</td></tr>`).join('');
 $('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">8月销售额</th></tr>' +
