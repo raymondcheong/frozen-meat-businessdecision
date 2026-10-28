@@ -254,7 +254,7 @@ renderMkt();
 const AI_MODULES = {
   m1: { name: '销售概览', chips: ['这个月整体盘子多大？', '手机订单占比趋势如何？', '9月为什么暴增？'],
     qa: [
-      { k: ['盘子', 'gmv', '销售额', '多少'], a: `${M.meta.firstDate} ~ ${M.meta.lastDate} 整体已登记订单：GMV <b>${(M.kpi.gmv / 10000).toFixed(1)} 万 HKD</b>、订单 <b>${M.kpi.orders.toLocaleString()} 张</b>、客单价 <b>${M.kpi.aov.toLocaleString()} HKD</b>、动销客户 <b>${M.kpi.custs} 户</b>、总销量约 ${Math.round(M.kpi.qty / 1000).toLocaleString()} 吨。口径：全渠道（含手机订单），按要货单号去重。` },
+      { k: ['盘子', 'gmv', '销售额', '多少'], a: `${M.monthly[0].m} ~ ${mLast.m} 整体已登记订单：GMV <b>${(M.kpi.gmv / 10000).toFixed(1)} 万 HKD</b>、订单 <b>${M.kpi.orders.toLocaleString()} 张</b>、客单价 <b>${M.kpi.aov.toLocaleString()} HKD</b>、动销客户 <b>${M.kpi.custs} 户</b>、总销量约 ${Math.round(M.kpi.qty / 1000).toLocaleString()} 吨。口径：全渠道（含手机订单），按要货单号去重。` },
       { k: ['手机', '占比', '移动'], a: `手机订单占比持续爬坡：单量占比从 ${M.monthly[0].m.slice(5)} 月 ${M.monthly[0].mobOrdersPct}% 升至 <b>9 月 ${m9.mobOrdersPct}%</b>（${m9.mobOrders.toLocaleString()}/${m9.orders.toLocaleString()} 单），金额占比 ${m9.mobAmtPct}%；${mLast.m.slice(5)} 月单量占比 ${mLast.mobOrdersPct}%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。` },
       { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径）。结构性异动见模块 3。' }
     ] },
