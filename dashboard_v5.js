@@ -142,20 +142,6 @@ reg('ch_anom_new').setOption({
     itemStyle: { color: C.tblue, borderRadius: [0, 5, 5, 0] },
     label: { show: true, position: 'right', formatter: p => fmt(p.value), fontSize: 10.5 } }]
 });
-reg('ch_anom_cust').setOption({
-  grid: { left: 60, right: 40, top: 30, bottom: 50 },
-  tooltip: { formatter: p => { const x = A.custAnom[p.data[4]];
-    return `<b>${x.short}</b><br/>8月 ${fmt(x.augAmt)} → 9月 ${fmt(x.sepAmt)} HKD（${x.daPct > 0 ? '+' : ''}${x.daPct}%）<br/>数量 ${x.dqPct > 0 ? '+' : ''}${x.dqPct}% ｜ 均价 ${x.dpPct > 0 ? '+' : ''}${x.dpPct}%<br/>${x.cause}`; } },
-  xAxis: { type: 'log', name: '采购数量变动（% · 对数轴）', min: 10, max: 6000,
-    axisLabel: { formatter: v => '+' + v + '%' } },
-  yAxis: { type: 'value', name: '均价变动（%）', scale: true },
-  series: [{ type: 'scatter',
-    symbolSize: d => Math.max(12, Math.min(46, Math.abs(d[2]) / 60)),
-    data: A.custAnom.map((x, i) => [Math.max(10, Math.abs(x.dqPct)), Math.max(-120, Math.min(120, x.dpPct)), x.daPct, x.short, i]),
-    itemStyle: { color: p => p.data[2] >= 0 ? C.green : C.red, opacity: 0.75 },
-    label: { show: true, formatter: p => p.data[3], position: 'top', fontSize: 9.5 },
-    markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0 }, { yAxis: 0 }], lineStyle: { color: '#B8C4D0', type: 'dashed' } } }]
-});
 $('tb_anom_cust').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">8月销售额</th><th style="text-align:right">9月销售额</th><th style="text-align:right">金额变动</th><th style="text-align:right">数量变动</th><th style="text-align:right">均价变动</th><th>原因判定</th></tr>' +
   A.custAnom.slice(0, 20).map(x => `<tr>
     <td><b>${x.short}</b></td>
