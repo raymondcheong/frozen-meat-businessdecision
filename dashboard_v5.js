@@ -107,9 +107,10 @@ reg('ch_attraov').setOption({
       markLine: { silent: true, symbol: 'none', data: [{ xAxis: freqMed }, { yAxis: aovMed }], lineStyle: { type: 'dashed', color: '#B8C4D0' } } }]
   });
 })();
-$('tb_dormant').innerHTML = '<tr><th>客户简称</th><th>属性</th><th style="text-align:right">历史贡献</th><th style="text-align:right">订单数</th><th style="text-align:right">未下单天数</th><th>最近下单</th></tr>' +
-  M.dormant.slice(0, 10).map(d => `<tr><td><b>${d.short}</b></td><td>${d.attr || '未映射'}</td>
+$('tb_dormant').innerHTML = '<tr><th>客户简称</th><th>属性</th><th style="text-align:right">历史贡献</th><th style="text-align:right">订单数</th><th style="text-align:right">客单价(HKD)</th><th style="text-align:right">未下单天数</th><th>最近下单</th></tr>' +
+  M.dormant.slice(0, 10).map(d => `<tr><td><b>${d.short}</b>${d.highValue ? ' <span style="color:#E8762C;font-size:11px;font-weight:700">★高价值</span>' : ''}</td><td>${d.attr || '未映射'}</td>
     <td class="num" style="text-align:right">${(d.amt / 10000).toFixed(1)} 万</td><td class="num" style="text-align:right">${d.orders}</td>
+    <td class="num" style="text-align:right;font-weight:700;color:${d.highValue ? '#E8762C' : '#33475B'}">${fmt(d.aov || Math.round(d.amt / Math.max(1, d.orders)))}</td>
     <td class="num" style="text-align:right;color:${C.red};font-weight:700">${d.days} 天</td><td class="num">${d.lastDate}</td></tr>`).join('');
 
 // ==================== m3 异常变动 ====================
@@ -168,6 +169,39 @@ $('tb_cust_new').innerHTML = '<tr><th>客户简称</th><th style="text-align:rig
   A.custNew.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.sepAmt)} HKD</td></tr>`).join('');
 $('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">8月销售额</th></tr>' +
   A.custLost.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.augAmt)} HKD</td></tr>`).join('');
+
+// ---- ① 应增未增小类明细（小类 → 掉队客户）----
+$('tb_sigmiss').innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">客户数<br><span style="font-weight:400">增长/下降</span></th>' +
+  '<th style="text-align:right">前3月月均(kg)</th><th style="text-align:right">近2月月均(kg)</th><th style="text-align:right">小类增幅</th>' +
+  '<th>掉队客户</th><th>属性</th><th style="text-align:right">该客户前3月月均</th><th style="text-align:right">近2月月均</th><th style="text-align:right">变动</th><th style="text-align:right">缺口(kg/月)</th></tr>' +
+  (M.sigMiss || []).map(s => {
+    const rows = s.drops.map((d, i) => `<tr${i === 0 ? ' style="border-top:2px solid #D8E0EA"' : ''}>
+      ${i === 0 ? `<td rowspan="${s.drops.length}" style="vertical-align:top"><b>${s.small}</b><br><span style="color:#8A97A6;font-size:11px">${s.mid}</span></td>
+        <td rowspan="${s.drops.length}" class="num" style="text-align:right;vertical-align:top">${s.custCount} 户<br><span style="color:${C.green}">↑${s.upCount}</span> <span style="color:${C.red}">↓${s.downCount}</span></td>
+        <td rowspan="${s.drops.length}" class="num" style="text-align:right;vertical-align:top">${fmt(s.augQty)}</td>
+        <td rowspan="${s.drops.length}" class="num" style="text-align:right;vertical-align:top">${fmt(s.sepQty)}</td>
+        <td rowspan="${s.drops.length}" class="num" style="text-align:right;vertical-align:top;color:${C.green};font-weight:700">${s.growth > 0 ? '+' : ''}${s.growth}%</td>` : ''}
+      <td><b>${d.cust}</b></td><td style="font-size:11.5px">${d.attr}</td>
+      <td class="num" style="text-align:right">${fmt(d.augQty)}</td>
+      <td class="num" style="text-align:right">${fmt(d.sepQty)}</td>
+      <td class="num" style="text-align:right;color:${C.red};font-weight:700">${d.chg}%</td>
+      <td class="num" style="text-align:right"><b>${fmt(d.lossQty)}</b></td></tr>`).join('');
+    return rows;
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:#8A97A6;padding:18px">本期无符合条件的小类</td></tr>';
+
+// ---- ② 应涨反降客户明细 ----
+$('tb_attrdrop').innerHTML = '<tr><th>客户简称</th><th>属性</th><th style="text-align:right">属性整体增幅</th>' +
+  '<th style="text-align:right">属性内客户<br><span style="font-weight:400">增长占比</span></th>' +
+  '<th style="text-align:right">前3月月均(HKD)</th><th style="text-align:right">近2月月均(HKD)</th><th style="text-align:right">变动</th><th style="text-align:right">缺口(HKD/月)</th></tr>' +
+  ((M.attrDrop || []).map(d => `<tr>
+    <td><b>${d.cust}</b></td><td style="font-size:11.5px">${d.attr}</td>
+    <td class="num" style="text-align:right;color:${C.green};font-weight:700">+${d.attrGrowth}%</td>
+    <td class="num" style="text-align:right">${d.attrUpPct}%（${Math.round(d.attrUpPct * d.attrCustCount / 100)}/${d.attrCustCount}）</td>
+    <td class="num" style="text-align:right">${fmt(d.augAmt)}</td>
+    <td class="num" style="text-align:right">${fmt(d.sepAmt)}</td>
+    <td class="num" style="text-align:right;color:${C.red};font-weight:700">${d.chg}%</td>
+    <td class="num" style="text-align:right"><b>${fmt(d.lossAmt)}</b></td></tr>`).join('')
+   || '<tr><td colspan="8" style="text-align:center;color:#8A97A6;padding:18px">本期无符合条件的客户</td></tr>');
 
 // ==================== m4 关联规则与需求机会 ====================
 $('tb_rules').innerHTML = '<tr><th>产品 A <span style="font-weight:400;color:#888">（小类）</span></th><th>产品 B <span style="font-weight:400;color:#888">（小类）</span></th><th style="text-align:right">共现</th><th style="text-align:right">置信度</th><th style="text-align:right">lift</th></tr>' +
@@ -318,18 +352,26 @@ const AI_MODULES = {
       { k: ['手机', '占比', '移动'], a: `手机订单占比持续爬坡：单量占比从 ${M.monthly[0].m.slice(5)} 月 ${M.monthly[0].mobOrdersPct}% 升至 <b>9 月 ${m9.mobOrdersPct}%</b>（${m9.mobOrders.toLocaleString()}/${m9.orders.toLocaleString()} 单），金额占比 ${m9.mobAmtPct}%；${mLast.m.slice(5)} 月单量占比 ${mLast.mobOrdersPct}%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。` },
       { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径）。结构性异动见模块 3。' }
     ] },
-  m2: { name: '客户需求分析与产品机会洞察', chips: ['高价值客户有哪些？', '沉睡客户怎么唤回？', '哪个属性客单价最高？'],
+  m2: { name: '客户需求分析与产品机会洞察', chips: ['高价值客户有哪些？', '沉睡客户怎么唤回？', '高价值沉睡客户是谁？', '哪个属性客单价最高？'],
     qa: [
       { k: ['高价值', '分层', 'top'], a: `高价值客户 <b>${M.tierStat['高价值客户'].count} 户（${M.tierStat['高价值客户'].countPct}%）贡献 ${M.tierStat['高价值客户'].amtPct}% GMV</b>（${(M.tierStat['高价值客户'].amt / 10000).toFixed(0)} 万 HKD）。Top3：` + M.topCustomers.slice(0, 3).map(c => `${c.short}（${(c.amt / 10000).toFixed(0)}万）`).join('、') + '。' },
       { k: ['沉睡', '唤回', '流失'], a: `沉睡客户（>30 天未下单）<b>${M.dormantCount} 户</b>，历史贡献 ${(M.dormantAmt / 10000).toFixed(1)} 万 HKD。优先唤回：` + M.dormant.slice(0, 3).map(d => `${d.short}（${d.days}天/${(d.amt / 10000).toFixed(1)}万）`).join('、') + '。' },
+      { k: ['高价值沉睡', '客单价高', '大客户沉睡'], a: (() => { const s = M.dormantHighStat || { count: 0, amt: 0, aovThreshold: 0, aovAvg: 0, longSleep: 0 };
+          const list = (M.dormantHigh || []).slice(0, 3).map(d => `${d.short}（客单价 ${fmt(d.aov)}、${d.days} 天未下单）`).join('、');
+          return `高价值沉睡客户 <b>${s.count} 户</b>（客单价 ≥ ${fmt(s.aovThreshold)} HKD 且未下单 >30 天），客单价均值 ${fmt(s.aovAvg)} HKD，历史贡献合计 ${(s.amt / 10000).toFixed(1)} 万，其中 >90 天 ${s.longSleep} 户。优先回访：${list}。`; })() },
       { k: ['属性', '客单价', '业态'], a: '属性客单价：' + M.attrAov.slice(0, 4).map(x => `${x.attr} ${fmt(x.aov)}`).join(' > ') + ` HKD；虚线为整体 ${M.kpi.aov.toLocaleString()}。零售超市/KA 餐饮为最高单值人群。` }
     ] },
-  m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '大快活发生了什么？'],
+  m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '哪些小类应增未增？', '谁应涨反降？'],
     qa: [
+      { k: ['应增未增', '掉队', '小类增长'], a: (() => { const s = (M.sigMiss || []);
+          if (!s.length) return '本期无符合「多数客户增长、个别客户掉队」条件的小类。';
+          return `本期 <b>${s.length} 个小类</b>符合「应增未增」：` + s.map(x => `<b>${x.small}</b>（${x.custCount} 户中 ${x.upCount} 户增长、${x.downCount} 户下降，小类整体 ${x.growth > 0 ? '+' : ''}${x.growth}%）`).join('；') + '。掉队客户集中在' + s.flatMap(x => x.drops.slice(0, 2).map(d => `${d.cust}（${x.small} ${d.chg}%）`)).slice(0, 4).join('、') + '，建议按缺口量逐户补单。'; })() },
+      { k: ['应涨反降', '属性', '反降'], a: (() => { const d = (M.attrDrop || []);
+          if (!d.length) return '本期无符合「属性内多数客户增长、个别客户下降」条件的客户。';
+          return `本期 <b>${d.length} 户</b>属「应涨反降」：` + d.slice(0, 4).map(x => `${x.cust}（${x.attr}，${x.chg}%，属性整体 +${x.attrGrowth}%）`).join('、') + '，合计月缺口约 ' + (d.reduce((s, x) => s + x.lossAmt, 0) / 10000).toFixed(1) + ' 万 HKD。'; })() },
       { k: ['下跌', '下滑', '跌'], a: '环比下跌小类 10 个，最深：<b>豬軟骨 −99.9%</b>、豬肚 −98.9%、金錢展 −94.4%、牛肋骨肉 −93.9%——多数被同中类大盘品类承接（如四號肉 4.4→5.9 万 kg、牛胸腩 1.0→5.1 万 kg），属采购向主流规格集中；熟蝦 −71.7% 则被蝦肉承接（加工偏好切换）。' },
       { k: ['品类', '小类', '产品'], a: '上涨异动 Top：<b>牛胸腩 +403.6%</b>（1.0→5.1 万 kg）、肋排 +210.9%、牛霖 +164.8%、整鴨 +131.1%——大盘价跌中的逆势放量品类，多与牛肉/禽类旺季备货有关；下跌侧见「环比下跌小类」卡。' },
-      { k: ['客户', '异动', '谁'], a: '可比口径客户异动 110 户。增幅 Top：香港美食 +634%（数量+587%为主）、振興凍肉 +571%、南光谷豐 +466%；下滑侧请关注「8月活跃9月未购」12 户——有成拓展（历史 139.6 万、46 天未下单）优先级最高。' },
-      { k: ['大快活', '大家樂', '大家乐', '香港美食'], a: '香港美食 8 月 6.3 万 → 9 月 46.0 万（+634%）：采购数量 +587% 为主、均价 +6.8%——<b>数量驱动的放量</b>且结构稳定偏优，建议业务员趁热绑定框架协议；此类「量价齐升」客户在散点图右上区。' }
+      { k: ['客户', '异动', '谁'], a: '可比口径客户异动 110 户。增幅 Top：香港美食 +634%（数量+587%为主）、振興凍肉 +571%、南光谷豐 +466%；下滑侧请关注「8月活跃9月未购」12 户——有成拓展（历史 139.6 万、46 天未下单）优先级最高。' }
     ] },
   m4: { name: '关联规则与需求机会', chips: ['有哪些组合销售机会？', '首购警示有多少？'],
     qa: [
