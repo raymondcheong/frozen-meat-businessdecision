@@ -1,5 +1,5 @@
 // ESHOP 中控台 v5 渲染逻辑（整体数据口径）
-const M = D.M, MKT = D.MKT, V2 = D.V2;
+const M = D.M, MKT = D.MKT, INV = D.INV;
 const A = M.anomaly;
 const m9 = M.monthly.find(x => x.m === '2026-09') || M.monthly[M.monthly.length - 1];
 const mLast = M.monthly[M.monthly.length - 1];
@@ -197,23 +197,83 @@ document.querySelectorAll('[data-fbk]').forEach(sel => sel.onchange = () => {
   try { localStorage.setItem(FB_KEY, JSON.stringify(fbTrack)); } catch (e) {}
 });
 
-// ==================== m5 库存预警与供应链 ====================
+// ==================== m5 库存预警与供应链（真实库存） ====================
 (function () {
-  const lv = [...V2.alerts].sort((a, b) => (b.safety - b.current) - (a.safety - a.current)).slice(0, 10);
-  reg('ch_level').setOption({
-    grid: { left: 130, right: 110, top: 20, bottom: 40 },
-    tooltip: { trigger: 'axis', formatter: p => { const x = lv[p[0].dataIndex];
-      return `${x.name}@${x.wname}<br/>在库 <b>${x.current}</b> / 安全 ${x.safety} ${x.unit}（水位 ${(x.current / x.safety * 100).toFixed(0)}%）`; } },
-    xAxis: { type: 'value', max: 135, name: '水位 %（在库÷安全）' },
-    yAxis: { type: 'category', data: lv.map(x => x.name.slice(0, 10) + '@' + x.wname.slice(0, 3)) },
-    series: [{ type: 'bar', barWidth: 15,
-      data: lv.map(x => ({ value: +(x.current / x.safety * 100).toFixed(0),
-        itemStyle: { color: x.current / x.safety < 0.5 ? C.red : (x.current / x.safety < 1 ? C.amber : C.green), borderRadius: [0, 5, 5, 0] } })),
-      label: { show: true, position: 'right', fontSize: 10.5, formatter: p => p.value + '%' },
-      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 50 }, { xAxis: 100 }],
-        lineStyle: { type: 'dashed', color: C.blue }, label: { fontSize: 10 } } }]
+  // ① 按仓 × 中类 Top8 堆叠柱
+  const mids = INV.midWh.map(x => x.mid);
+  const whs = INV.byWarehouse.map(w => w.wh);
+  const palette = [C.tblue, C.teal, C.orange, C.gold];
+  const maxV = Math.max(...INV.midWh.map(x => whs.reduce((s, w) => s + (x[w] || 0), 0)));
+  reg('ch_wh').setOption({
+    grid: { left: 62, right: 30, top: 44, bottom: 62 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: p => p[0].name + '<br/>' + p.map(x => `${x.marker}${x.seriesName}：<b>${fmt(x.value)}</b> kg`).join('<br/>') },
+    legend: { top: 6, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', data: mids, axisLabel: { fontSize: 10.5, interval: 0, rotate: 22 } },
+    yAxis: { type: 'value', name: '吨', max: Math.ceil(maxV / 200000) * 200000,
+      axisLabel: { fontSize: 10, formatter: v => (v / 1000) + '' } },
+    series: whs.map((w, i) => ({
+      name: w, type: 'bar', stack: 'wh', barWidth: 26,
+      itemStyle: { color: palette[i % palette.length] },
+      data: INV.midWh.map(x => x[w] || 0)
+    }))
+  });
+
+  // ② 库存金额 Top 10 SKU
+  const tv = [...INV.topValue].sort((a, b) => a.value - b.value);
+  reg('ch_invval').setOption({
+    grid: { left: 10, right: 80, top: 16, bottom: 24, containLabel: true },
+    tooltip: { trigger: 'axis', formatter: p => { const x = tv[p[0].dataIndex];
+      return `${x.name}<br/>金额 <b>${fmt(x.value)}</b> HKD<br/>现存量 ${fmt(x.qty)} kg · 单价 ${x.cost}`; } },
+    xAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: v => (v / 10000) + '万' } },
+    yAxis: { type: 'category', data: tv.map(x => x.name.split('|')[0].slice(0, 12)), axisLabel: { fontSize: 10 } },
+    series: [{ type: 'bar', barWidth: 13, itemStyle: { color: C.teal, borderRadius: [0, 5, 5, 0] },
+      data: tv.map(x => x.value),
+      label: { show: true, position: 'right', fontSize: 10, color: '#33475B', formatter: p => (p.value / 10000).toFixed(0) + '万' } }]
   });
 })();
+
+// ③ 库存积压表
+$('tb_over').innerHTML = '<tr><th>SKU</th><th>中类 / 小类</th><th>仓库分布</th>' +
+  '<th style="text-align:right">现存量(kg)</th><th style="text-align:right">库存金额</th>' +
+  '<th style="text-align:right">近90天出货</th><th style="text-align:right">可售月数</th><th>最早到期</th><th>建议</th></tr>' +
+  INV.overstock.map(o => {
+    const wh = Object.entries(o.whs).map(([k, v]) => `${k} ${fmt(v)}`).join(' · ');
+    const mc = o.monthsCover == null ? '<b style="color:#D64545">无出货</b>' : `<b style="color:${o.monthsCover >= 12 ? '#D64545' : '#E8A13C'}">${o.monthsCover} 月</b>`;
+    const sug = o.monthsCover == null || o.monthsCover >= 24 ? '🟥 优先促销/打包' : (o.monthsCover >= 12 ? '🟧 加大推单' : '🟨 控制进货');
+    const exp = o.expiry ? `${o.expiry}${o.daysToExpiry != null ? `（${o.daysToExpiry} 天）` : ''}` : '<span style="color:#A7B2C0">无批次数据</span>';
+    return `<tr><td style="font-size:12px">${o.name}</td>
+      <td style="font-size:11.5px">${o.mid}<br/><span style="color:#8A97A6">${o.small}</span></td>
+      <td style="font-size:11.5px">${wh}</td>
+      <td class="num" style="text-align:right"><b>${fmt(o.qty)}</b></td>
+      <td class="num" style="text-align:right">${o.value ? fmt(o.value) : '—'}</td>
+      <td class="num" style="text-align:right">${fmt(o.sold90)}</td>
+      <td style="text-align:right">${mc}</td>
+      <td style="font-size:11.5px">${exp}</td>
+      <td style="font-size:11.5px">${sug}</td></tr>`;
+  }).join('');
+
+// ④ 应买未买目标客户
+$('tb_target').innerHTML = '<tr><th>积压 SKU</th><th>目标客户</th><th>客户属性</th>' +
+  '<th style="text-align:right">近90天同类采购(kg)</th><th style="text-align:right">同属性客户已购比例</th>' +
+  '<th style="text-align:right">同类客户购货量(kg)</th><th>判断依据</th></tr>' +
+  INV.overstock.map(o => {
+    if (!o.targets || !o.targets.length) return '';
+    const rows = o.targets.map((t, i) => {
+      const basis = `已买「${o.small}」${fmt(t.qty90)} kg，未进本品；同属性 ${t.cover}% 客户已购`;
+      return `<tr${i === 0 ? ' style="border-top:2px solid #D8E0EA"' : ''}>
+        ${i === 0 ? `<td rowspan="${o.targets.length}" style="font-size:12px;vertical-align:top">${o.name}<br/>
+          <span style="color:#8A97A6;font-size:11px">库存 ${fmt(o.qty)} kg · 可售 ${o.monthsCover == null ? '无出货' : o.monthsCover + ' 月'}</span></td>` : ''}
+        <td><b>${t.cust}</b></td>
+        <td style="font-size:11.5px">${t.attr}</td>
+        <td class="num" style="text-align:right">${fmt(t.qty90)}</td>
+        <td class="num" style="text-align:right">${t.cover}%</td>
+        <td class="num" style="text-align:right">${fmt(t.peerQty)}</td>
+        <td style="font-size:11.5px;color:#5B6B7F">${basis}</td></tr>`;
+    }).join('');
+    return rows;
+  }).join('');
+
 $('tb_forecast').innerHTML = '<tr><th>SKU</th><th style="text-align:right">近3月月均(kg)</th><th style="text-align:right">趋势因子</th><th style="text-align:right">10月预测(kg)</th><th>备货建议</th></tr>' +
   M.forecast.slice(0, 10).map(f => `<tr><td>${f.name}</td><td class="num" style="text-align:right">${fmt(f.avg3)}</td>
     <td class="num" style="text-align:right">${f.trend}</td><td class="num" style="text-align:right"><b>${fmt(f.oct_forecast)}</b></td>
@@ -276,10 +336,14 @@ const AI_MODULES = {
       { k: ['组合', '关联', '连带'], a: `有效关联规则 ${M.skuRules.length} 条（共现≥30 单）：` + M.skuRules.slice(0, 3).map(r => `${r.a.split('｜')[0]}×${r.b.split('｜')[0]}（lift ${r.lift}）`).join('；') + '。多 SKU 订单占比 25.8%，组合装空间大。' },
       { k: ['首购', '初次'], a: `近 60 天老客户首购新产品 <b>${M.firstBuy.length.toLocaleString()} 条</b>（整体口径客户基数大）。页面展示最新 50 条，业务员 3 日回访制，状态本地可追踪。` }
     ] },
-  m5: { name: '库存预警与供应链', chips: ['10月该备什么货？', '库存数据是真实的吗？'],
+  m5: { name: '库存预警与供应链', chips: ['10月该备什么货？', '库存数据是真实的吗？', '哪些货积压了？', '积压货该找谁推？'],
     qa: [
       { k: ['10月', '预测', '备货'], a: '10 月需求预测 Top3（真实销量×趋势因子）：' + M.forecast.slice(0, 3).map(f => `${f.name} ${fmt(f.oct_forecast)} kg（趋势 ${f.trend}）`).join('、') + '。趋势 >1.2 的 SKU 提前备货。' },
-      { k: ['真实', '模拟', '库存'], a: '库存水位为<b>模拟数据</b>（MCP 规则生成），仅用于演示预警与补货逻辑；需求预测基于真实销量。' }
+      { k: ['真实', '模拟', '库存'], a: `库存为<b>真实数据</b>：取自 ${INV.meta.date} 现货表（${INV.meta.file}），合计 <b>${INV.kpis.qtyTon} 吨</b>、${INV.kpis.skuCount} 个在库 SKU，仓库按其士倉 / 沙田二倉归集；金额按采购成本计价（覆盖 ${INV.meta.costCoverage}% 库存量）。` },
+      { k: ['积压', '呆滞', '去化'], a: (() => { const o = INV.overstock[0];
+          return `积压判定＝现有量 ≥${INV.threshold.minQty} kg 且可售 ≥${INV.threshold.minMonths} 个月，共 <b>${INV.overstock.length} 个 SKU</b>、${fmt(INV.overstock.reduce((s, x) => s + x.qty, 0))} kg（占总量 ${(INV.overstock.reduce((s, x) => s + x.qty, 0) / INV.kpis.qtyKg * 100).toFixed(1)}%）。最重的「${o.name.split('|')[0]}」库存 ${fmt(o.qty)} kg、可售 ${o.monthsCover == null ? '无出货' : o.monthsCover + ' 个月'}。`; })() },
+      { k: ['谁', '客户', '推', '应买未买'], a: (() => { const o = INV.overstock[0]; const t = o.targets[0];
+          return `「${o.name.split('|')[0]}」应买未买目标：<b>${t.cust}</b>（${t.attr}）——近 90 天已买同小类「${o.small}」${fmt(t.qty90)} kg，但未进本品；同属性客户 ${t.cover}% 已购。另有 ${o.candCount} 户同类候选，详见表格。`; })() }
     ] },
   m6: { name: '市場洞察', chips: ['猪价怎么走？', '羊肉有什么政策变化？', '信息源有哪些？'],
     qa: [
