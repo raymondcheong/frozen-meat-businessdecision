@@ -587,3 +587,16 @@ $('aiText').addEventListener('keydown', e => { if (e.key === 'Enter') aiAsk(); }
 })();
 
 aiSetModule('m1', false);
+
+// ---------- 深链：#m1~#m6 直接打开对应模块 ----------
+(function () {
+  function go() {
+    var h = location.hash;
+    if (!h || !/^#m[1-6]$/.test(h)) return;
+    var t = document.querySelector('.tab[data-m="' + h + '"]');
+    if (t) t.click();
+  }
+  if (document.readyState !== 'loading') setTimeout(go, 120);
+  else window.addEventListener('DOMContentLoaded', function () { setTimeout(go, 120); });
+  window.addEventListener('hashchange', function () { setTimeout(go, 0); });
+})();
