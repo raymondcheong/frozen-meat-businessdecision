@@ -591,9 +591,9 @@ aiSetModule('m1', false);
 // ---------- 深链：#m1~#m6 直接打开对应模块 ----------
 (function () {
   function go() {
-    var h = location.hash;
-    if (!h || !/^#m[1-6]$/.test(h)) return;
-    var t = document.querySelector('.tab[data-m="' + h + '"]');
+    var id = (location.hash || '').replace('#', '');
+    if (!/^m[1-6]$/.test(id)) return;
+    var t = document.querySelector('.tab[data-m="' + id + '"]');
     if (t) t.click();
   }
   if (document.readyState !== 'loading') setTimeout(go, 120);
