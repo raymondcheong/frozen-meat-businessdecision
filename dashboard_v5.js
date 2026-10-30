@@ -150,7 +150,7 @@ $('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:ri
 // ---- ① 应增未增小类明细（小类 → 掉队客户）----
 $('tb_sigmiss').innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">客户数<br><span style="font-weight:400">增长/下降</span></th>' +
   '<th style="text-align:right">前3月月均(kg)</th><th style="text-align:right">近2月月均(kg)</th><th style="text-align:right">小类增幅</th>' +
-  '<th>掉队客户</th><th>属性</th><th style="text-align:right">该客户前3月月均</th><th style="text-align:right">近2月月均</th><th style="text-align:right">变动</th><th style="text-align:right">缺口(kg/月)</th></tr>' +
+  '<th>掉队客户</th><th>属性</th><th style="text-align:right">该客户前3月月均</th><th style="text-align:right">近2月月均</th><th style="text-align:right">变动</th><th style="text-align:right">缺口(kg/月)</th><th style="text-align:right">预计损失金额<br><span style="font-weight:400">HKD/月</span></th></tr>' +
   (M.sigMiss || []).map(s => {
     const rows = s.drops.map((d, i) => `<tr${i === 0 ? ' style="border-top:2px solid #D8E0EA"' : ''}>
       ${i === 0 ? `<td rowspan="${s.drops.length}" style="vertical-align:top"><b>${s.small}</b><br><span style="color:#8A97A6;font-size:11px">${s.mid}</span></td>
@@ -162,9 +162,10 @@ $('tb_sigmiss').innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:r
       <td class="num" style="text-align:right">${fmt(d.augQty)}</td>
       <td class="num" style="text-align:right">${fmt(d.sepQty)}</td>
       <td class="num" style="text-align:right;color:${C.red};font-weight:700">${d.chg}%</td>
-      <td class="num" style="text-align:right"><b>${fmt(d.lossQty)}</b></td></tr>`).join('');
+      <td class="num" style="text-align:right"><b>${fmt(d.lossQty)}</b></td>
+      <td class="num" style="text-align:right;font-weight:700;color:#C2410C" title="缺口 ${fmt(d.lossQty)} kg × 单价 ${d.price} HKD/kg">${fmt(d.lossAmt || 0)}</td></tr>`).join('');
     return rows;
-  }).join('') || '<tr><td colspan="11" style="text-align:center;color:#8A97A6;padding:18px">本期无符合条件的小类</td></tr>';
+  }).join('') || '<tr><td colspan="12" style="text-align:center;color:#8A97A6;padding:18px">本期无符合条件的小类</td></tr>';
 
 // ---- ② 应涨反降客户明细 ----
 $('tb_attrdrop').innerHTML = '<tr><th>客户简称</th><th>属性</th><th style="text-align:right">属性整体增幅</th>' +
