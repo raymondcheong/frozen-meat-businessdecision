@@ -119,7 +119,7 @@ const _anomAll = [...A.smallAnom, ...A.smallDown.map(x => ({ small: x.small, aug
 reg('ch_anom_small').setOption({
   grid: { left: 100, right: 70, top: 20, bottom: 40 },
   tooltip: { trigger: 'axis', formatter: p => { const x = _anomAll[p[0].dataIndex];
-    return `${x.small}<br/>8月 ${fmt(x.augQty)} kg → 9月 ${fmt(x.sepQty)} kg（<b>${x.dqPct > 0 ? '+' : ''}${x.dqPct}%</b>）`; } },
+    return `${x.small}<br/>9月 ${fmt(x.augQty)} kg → 10月 ${fmt(x.sepQty)} kg（<b>${x.dqPct > 0 ? '+' : ''}${x.dqPct}%</b>）`; } },
   xAxis: { type: 'value', name: '销量环比变动（%）' },
   yAxis: { type: 'category', data: _anomAll.map(x => x.small) },
   series: [{ type: 'bar', barWidth: 18,
@@ -127,7 +127,7 @@ reg('ch_anom_small').setOption({
     label: { show: true, position: 'right', formatter: p => (p.value > 0 ? '+' : '') + p.value + '%', fontSize: 11, fontWeight: 'bold' },
     markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0 }], lineStyle: { color: '#B8C4D0' } } }]
 });
-$('tb_small_down').innerHTML = '<tr><th>小类</th><th style="text-align:right">8月(kg)</th><th style="text-align:right">9月(kg)</th><th style="text-align:right">跌幅</th><th>可能原因</th></tr>' +
+$('tb_small_down').innerHTML = '<tr><th>小类</th><th style="text-align:right">9月(kg)</th><th style="text-align:right">10月(kg)</th><th style="text-align:right">跌幅</th><th>可能原因</th></tr>' +
   A.smallDown.map(x => `<tr><td><b>${x.small}</b><br><span style="font-size:11px;color:#888">${x.mid}</span></td>
     <td class="num" style="text-align:right">${fmt(x.augQty)}</td><td class="num" style="text-align:right">${fmt(x.sepQty)}</td>
     <td class="num" style="text-align:right;color:${C.red};font-weight:700">${x.dqPct}%</td>
@@ -135,16 +135,16 @@ $('tb_small_down').innerHTML = '<tr><th>小类</th><th style="text-align:right">
 reg('ch_anom_new').setOption({
   grid: { left: 110, right: 70, top: 20, bottom: 40 },
   tooltip: { trigger: 'axis', formatter: p => { const x = A.sepTop[p[0].dataIndex];
-    return `${x.small}<br/>9月销量 <b>${fmt(x.sepQty)} kg</b> · 金额 ${fmt(x.sepAmt)} HKD`; } },
+    return `${x.small}<br/>10月销量 <b>${fmt(x.sepQty)} kg</b> · 金额 ${fmt(x.sepAmt)} HKD`; } },
   xAxis: { type: 'value', axisLabel: { formatter: v => (v / 1000) + 'k' } },
   yAxis: { type: 'category', data: A.sepTop.map(x => x.small) },
   series: [{ type: 'bar', barWidth: 16, data: A.sepTop.map(x => x.sepQty),
     itemStyle: { color: C.tblue, borderRadius: [0, 5, 5, 0] },
     label: { show: true, position: 'right', formatter: p => fmt(p.value), fontSize: 10.5 } }]
 });
-$('tb_cust_new').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">9月销售额</th></tr>' +
+$('tb_cust_new').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">10月销售额</th></tr>' +
   A.custNew.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.sepAmt)} HKD</td></tr>`).join('');
-$('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">8月销售额</th></tr>' +
+$('tb_cust_lost').innerHTML = '<tr><th>客户简称</th><th style="text-align:right">9月销售额</th></tr>' +
   A.custLost.map(x => `<tr><td><b>${x.short}</b></td><td class="num" style="text-align:right">${fmt(x.augAmt)} HKD</td></tr>`).join('');
 
 // ---- ① 应增未增小类明细（小类 → 掉队客户）----
@@ -437,9 +437,9 @@ $('tb_target').innerHTML = '<tr><th>积压小类 / 中类</th><th style="text-al
   compute();
 })();
 
-$('tb_forecast').innerHTML = '<tr><th>SKU</th><th style="text-align:right">近3月月均(kg)</th><th style="text-align:right">趋势因子</th><th style="text-align:right">10月预测(kg)</th><th>备货建议</th></tr>' +
+$('tb_forecast').innerHTML = '<tr><th>SKU</th><th style="text-align:right">近3月月均(kg)</th><th style="text-align:right">趋势因子</th><th style="text-align:right">11月预测(kg)</th><th>备货建议</th></tr>' +
   M.forecast.slice(0, 10).map(f => `<tr><td>${f.name}</td><td class="num" style="text-align:right">${fmt(f.avg3)}</td>
-    <td class="num" style="text-align:right">${f.trend}</td><td class="num" style="text-align:right"><b>${fmt(f.oct_forecast)}</b></td>
+    <td class="num" style="text-align:right">${f.trend}</td><td class="num" style="text-align:right"><b>${fmt(f.next_forecast)}</b></td>
     <td style="font-size:12px">${f.trend > 1.2 ? '🔥 提前备货' : (f.trend < 0.85 ? '❄️ 收缩安全库存' : '常规补货')}</td></tr>`).join('');
 
 // ==================== m6 市場洞察（搜寻+分类+分组来源） ====================
@@ -475,11 +475,12 @@ renderMkt();
 
 // ==================== 模块专属 AI 助手 ====================
 const AI_MODULES = {
-  m1: { name: '销售概览', chips: ['这个月整体盘子多大？', '手机订单占比趋势如何？', '9月为什么暴增？'],
+  m1: { name: '销售概览', chips: ['这个月整体盘子多大？', '手机订单占比趋势如何？', '10月为什么增长？'],
     qa: [
       { k: ['盘子', 'gmv', '销售额', '多少'], a: `${M.monthly[0].m} ~ ${mLast.m} 整体已登记订单：GMV <b>${(M.kpi.gmv / 10000).toFixed(1)} 万 HKD</b>、订单 <b>${M.kpi.orders.toLocaleString()} 张</b>、客单价 <b>${M.kpi.aov.toLocaleString()} HKD</b>、动销客户 <b>${M.kpi.custs} 户</b>、总销量约 ${Math.round(M.kpi.qty / 1000).toLocaleString()} 吨。口径：全渠道（含手机订单），按要货单号去重。` },
       { k: ['手机', '占比', '移动'], a: `手机订单占比持续爬坡：单量占比从 ${M.monthly[0].m.slice(5)} 月 ${M.monthly[0].mobOrdersPct}% 升至 <b>9 月 ${m9.mobOrdersPct}%</b>（${m9.mobOrders.toLocaleString()}/${m9.orders.toLocaleString()} 单），金额占比 ${m9.mobAmtPct}%；${mLast.m.slice(5)} 月单量占比 ${mLast.mobOrdersPct}%。金额占比显著低于单量占比——手机订单单值低于整体均值（小单化特征）。` },
-      { k: ['9月', '暴增', '增长', '环比', '下滑'], a: '9 月 GMV 2,538 万 vs 8 月 2,810 万（<b>−9.7%</b>），但销量 +6.7%、订单 +3.8%——典型<b>量增价跌</b>，与猪价跌破 10 元关口的行情一致（公司级口径）。结构性异动见模块 3。' }
+      { k: ['10月', '暴增', '增长', '环比', '下滑'], a: (() => { const a = M.anomaly; const p = a.amtGrowth > 0 && a.qtyGrowth < 0 ? '量跌价升' : (a.amtGrowth < 0 && a.qtyGrowth > 0 ? '量增价跌' : (a.amtGrowth > 0 ? '量价齐升' : '量价齐跌'));
+          return `10 月 GMV ${(a.sepAmt / 10000).toFixed(0)} 万 vs 9 月 ${(a.augAmt / 10000).toFixed(0)} 万（<b>${a.amtGrowth > 0 ? '+' : ''}${a.amtGrowth}%</b>），销量 ${a.qtyGrowth > 0 ? '+' : ''}${a.qtyGrowth}%、订单 ${a.orderGrowth > 0 ? '+' : ''}${a.orderGrowth}%——典型<b>${p}</b>（公司级口径）。结构性异动见模块 3。`; })() }
     ] },
   m2: { name: '客户需求分析与产品机会洞察', chips: ['高价值客户有哪些？', '沉睡客户怎么唤回？', '高价值沉睡客户是谁？', '哪个属性客单价最高？'],
     qa: [
@@ -490,7 +491,7 @@ const AI_MODULES = {
           return `高价值沉睡客户 <b>${s.count} 户</b>（客单价 ≥ ${fmt(s.aovThreshold)} HKD 且未下单 >30 天），客单价均值 ${fmt(s.aovAvg)} HKD，历史贡献合计 ${(s.amt / 10000).toFixed(1)} 万，其中 >90 天 ${s.longSleep} 户。优先回访：${list}。`; })() },
       { k: ['属性', '客单价', '业态'], a: '属性客单价：' + M.attrAov.slice(0, 4).map(x => `${x.attr} ${fmt(x.aov)}`).join(' > ') + ` HKD；虚线为整体 ${M.kpi.aov.toLocaleString()}。零售超市/KA 餐饮为最高单值人群。` }
     ] },
-  m3: { name: '异常变动', chips: ['9月哪些品类异常波动？', '哪些客户销售额异动最大？', '哪些小类应增未增？', '谁应涨反降？'],
+  m3: { name: '异常变动', chips: ['10月哪些品类异常波动？', '哪些客户销售额异动最大？', '哪些小类应增未增？', '谁应涨反降？'],
     qa: [
       { k: ['应增未增', '掉队', '小类增长'], a: (() => { const s = (M.sigMiss || []);
           if (!s.length) return '本期无符合「多数客户增长、个别客户掉队」条件的小类。';
@@ -500,7 +501,8 @@ const AI_MODULES = {
           return `本期 <b>${d.length} 户</b>属「应涨反降」：` + d.slice(0, 4).map(x => `${x.cust}（${x.attr}，${x.chg}%，属性整体 +${x.attrGrowth}%）`).join('、') + '，合计月缺口约 ' + (d.reduce((s, x) => s + x.lossAmt, 0) / 10000).toFixed(1) + ' 万 HKD。'; })() },
       { k: ['下跌', '下滑', '跌'], a: '环比下跌小类 10 个，最深：<b>豬軟骨 −99.9%</b>、豬肚 −98.9%、金錢展 −94.4%、牛肋骨肉 −93.9%——多数被同中类大盘品类承接（如四號肉 4.4→5.9 万 kg、牛胸腩 1.0→5.1 万 kg），属采购向主流规格集中；熟蝦 −71.7% 则被蝦肉承接（加工偏好切换）。' },
       { k: ['品类', '小类', '产品'], a: '上涨异动 Top：<b>牛胸腩 +403.6%</b>（1.0→5.1 万 kg）、肋排 +210.9%、牛霖 +164.8%、整鴨 +131.1%——大盘价跌中的逆势放量品类，多与牛肉/禽类旺季备货有关；下跌侧见「环比下跌小类」卡。' },
-      { k: ['客户', '异动', '谁'], a: '可比口径客户异动 110 户。增幅 Top：香港美食 +634%（数量+587%为主）、振興凍肉 +571%、南光谷豐 +466%；下滑侧请关注「8月活跃9月未购」12 户——有成拓展（历史 139.6 万、46 天未下单）优先级最高。' }
+      { k: ['客户', '异动', '谁'], a: (() => { const a = A; const up = a.custAnom.filter(x => x.daPct > 0).slice(0, 3).map(x => `${x.short} +${x.daPct}%`).join('、');
+          return `可比口径客户异动 <b>${a.custAnom.length} 户</b>（10 月 ≥1 万且金额变动 ≥25%）。增幅 Top：${up || '—'}；下滑侧关注「9月活跃10月未购」<b>${a.custLost.length} 户</b>与新增 <b>${a.custNew.length} 户</b>。`; })() }
     ] },
   m4: { name: '关联规则与需求机会', chips: ['有哪些组合销售机会？', '首购警示有多少？'],
     qa: [
