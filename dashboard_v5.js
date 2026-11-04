@@ -532,9 +532,9 @@ renderMkt();
 
   // （2）客户 Top10 / 倒数 Top10
   const custTbl = (rows, id) => {
-    $(id).innerHTML = '<tr><th>客户</th><th>属性</th><th style="text-align:right">营业额 9→10月</th><th style="text-align:right">环比</th>' +
+    $(id).innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th><th style="text-align:right">营业额 9→10月</th><th style="text-align:right">环比</th>' +
       '<th style="text-align:right">毛利 9→10月</th><th style="text-align:right">毛利率</th><th style="text-align:right">销量(kg) 环比</th></tr>' +
-      rows.map(x => `<tr><td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}</td>
+      rows.map(x => `<tr><td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}<br><span style="color:#8A97A6;font-size:10px">${x.ch || ''}</span></td>
         <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
         <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
         <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b> 万</td>
