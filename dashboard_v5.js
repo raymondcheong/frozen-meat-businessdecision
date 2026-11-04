@@ -445,7 +445,8 @@ $('tb_forecast').innerHTML = '<tr><th>SKU</th><th style="text-align:right">近3�
 // ==================== m6 市場洞察（搜寻+分类+分组来源） ====================
 const SRC_GROUP = {
   '新牧网': '权威行情平台', 'Mysteel 我的钢铁网': '权威行情平台', '鸭子网': '行业协会与垂直门户',
-  '食品商务网': '官方价格监测', '中研普华': '行业研报机构', '其他公开渠道': '权威媒体与国际来源'
+  '食品商务网': '官方价格监测', '中研普华': '行业研报机构', '其他公开渠道': '权威媒体与国际来源',
+  '五豐行情（HK-frozenmeat）': '每日资讯聚合'
 };
 $('src_groups').innerHTML = MKT.meta.sources.map(s =>
   `<a href="${s.url || '#'}" target="_blank" rel="noopener">🌐 ${s.name}<span class="grp-tag">${SRC_GROUP[s.name] || '公开来源'}</span></a>`).join('');
@@ -462,7 +463,7 @@ function renderMkt() {
         <tr><th style="width:90px">维度</th><th>情报内容</th><th style="width:210px">来源 / 日期 / 原文</th></tr>
         ${items.map(it => `<tr><td>${dimIcon[it.dim] || '📌'} ${it.dim}</td>
           <td style="font-size:12.5px;line-height:1.7">${it.text}</td>
-          <td class="src-cell" style="font-size:11.5px">${it.url ? `<a class="src-link" href="${it.url}" target="_blank" rel="noopener">🔗 ${it.source}</a>` : it.source}<span class="src-date">${it.date}</span></td></tr>`).join('')}
+          <td class="src-cell" style="font-size:11.5px">${it.url ? `<a class="src-link" href="${it.url}" target="_blank" rel="noopener" title="${it.source}">🔗 ${it.source}</a>` : it.source}<span class="src-date">${it.date}</span></td></tr>`).join('')}
       </table></div></div>`;
   }).join('') || '<div class="card c12" style="text-align:center;color:#999;padding:30px">无匹配情报</div>';
 }
