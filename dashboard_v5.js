@@ -474,6 +474,75 @@ document.querySelectorAll('.cat-chip').forEach(ch => ch.onclick = () => {
 $('mkt_q').addEventListener('input', renderMkt);
 renderMkt();
 
+
+// ==================== m7 经营分析（公司级） ====================
+(function () {
+  const B = D.BIZ;
+  if (!B) return;
+  const k = B.kpi;
+
+  // 大类：9月 vs 10月 分组柱
+  const big = B.big.slice(0, 8);
+  reg('ch_biz_big').setOption({
+    grid: { left: 60, right: 40, top: 40, bottom: 46 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: p => { const x = big[p[0].dataIndex];
+        return `${x.name}<br/>10月 <b>${(x.amt / 10000).toFixed(0)} 万</b>｜9月 ${(x.prev / 10000).toFixed(0)} 万<br/>环比 ${x.growth == null ? '—' : (x.growth > 0 ? '+' : '') + x.growth + '%'}｜毛利率 ${x.gpr}%`; } },
+    legend: { top: 6, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', data: big.map(x => x.name), axisLabel: { fontSize: 11, interval: 0 } },
+    yAxis: { type: 'value', name: '万元', axisLabel: { fontSize: 10 } },
+    series: [
+      { name: '9月', type: 'bar', barWidth: 16, itemStyle: { color: '#B9CBDD' }, data: big.map(x => +(x.prev / 10000).toFixed(0)) },
+      { name: '10月', type: 'bar', barWidth: 16, itemStyle: { color: C.blue, borderRadius: [4, 4, 0, 0] },
+        data: big.map(x => +(x.amt / 10000).toFixed(0)),
+        label: { show: true, position: 'top', fontSize: 10, color: '#33475B',
+          formatter: p => { const g = big[p.dataIndex].growth; return g == null ? '' : (g > 0 ? '+' : '') + g + '%'; } } }
+    ]
+  });
+
+  // 渠道 Top 10
+  const ch = B.channel.slice(0, 10).reverse();
+  reg('ch_biz_ch').setOption({
+    grid: { left: 10, right: 70, top: 10, bottom: 20, containLabel: true },
+    tooltip: { trigger: 'axis', formatter: p => { const x = ch[p[0].dataIndex];
+      return `${x.name}<br/>营业额 <b>${(x.amt / 10000).toFixed(0)} 万</b>（占 ${x.share}%）<br/>毛利率 ${x.gpr}%`; } },
+    xAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: v => v + '万' } },
+    yAxis: { type: 'category', data: ch.map(x => x.name.replace('傳統渠道-', '傳統·').replace('特殊渠道-', '特殊·').replace('現代渠道-', '現代·')), axisLabel: { fontSize: 10.5 } },
+    series: [{ type: 'bar', barWidth: 14, itemStyle: { color: C.teal, borderRadius: [0, 4, 4, 0] },
+      data: ch.map(x => +(x.amt / 10000).toFixed(0)),
+      label: { show: true, position: 'right', fontSize: 10, formatter: p => p.value + '万' } }]
+  });
+
+  // Top 客户
+  $('tb_biz_cust').innerHTML = '<tr><th>客户</th><th>渠道属性</th><th style="text-align:right">10月营业额</th><th style="text-align:right">环比</th><th style="text-align:right">毛利率</th><th>主品类</th></tr>' +
+    B.topCust.slice(0, 15).map(x => `<tr><td><b>${x.name}</b></td><td style="font-size:11px">${x.attr}</td>
+      <td class="num" style="text-align:right">${(x.amt / 10000).toFixed(0)} 万</td>
+      <td class="num" style="text-align:right;color:${x.growth == null ? '#8A97A6' : (x.growth >= 0 ? C.green : C.red)};font-weight:700">${x.growth == null ? '新增' : (x.growth > 0 ? '+' : '') + x.growth + '%'}</td>
+      <td class="num" style="text-align:right">${x.gpr}%</td><td style="font-size:11px">${x.mainCat}</td></tr>`).join('');
+
+  // Top SKU
+  $('tb_biz_sku').innerHTML = '<tr><th>SKU</th><th>中类 / 小类</th><th style="text-align:right">销量(kg)</th><th style="text-align:right">营业额</th><th style="text-align:right">毛利率</th></tr>' +
+    B.topSku.slice(0, 15).map(x => `<tr><td style="font-size:12px"><b>${x.name.split('|')[0]}</b><br/><span style="color:#8A97A6;font-size:10.5px">${x.code}</span></td>
+      <td style="font-size:11px">${x.mid}<br/><span style="color:#8A97A6">${x.small}</span></td>
+      <td class="num" style="text-align:right">${fmt(x.qty)}</td>
+      <td class="num" style="text-align:right">${(x.amt / 10000).toFixed(1)} 万</td>
+      <td class="num" style="text-align:right">${x.gpr}%</td></tr>`).join('');
+
+  // 中类明细
+  $('tb_biz_mid').innerHTML = '<tr><th>中类</th><th style="text-align:right">10月营业额</th><th style="text-align:right">9月</th><th style="text-align:right">环比</th><th style="text-align:right">毛利率</th><th style="text-align:right">边际利润率</th><th>判断</th></tr>' +
+    B.mid.map(x => {
+      const mp = x.mpr;
+      const judge = mp < 0 ? '🟥 费用侵蚀毛利' : (mp < 2 ? '🟨 薄利' : '🟩 健康');
+      return `<tr><td><b>${x.name}</b></td>
+        <td class="num" style="text-align:right">${(x.amt / 10000).toFixed(0)} 万</td>
+        <td class="num" style="text-align:right">${(x.prev / 10000).toFixed(0)} 万</td>
+        <td class="num" style="text-align:right;color:${x.growth == null ? '#8A97A6' : (x.growth >= 0 ? C.green : C.red)};font-weight:700">${x.growth == null ? '—' : (x.growth > 0 ? '+' : '') + x.growth + '%'}</td>
+        <td class="num" style="text-align:right">${x.gpr}%</td>
+        <td class="num" style="text-align:right;color:${mp < 0 ? C.red : '#33475B'};font-weight:700">${mp}%</td>
+        <td style="font-size:11.5px">${judge}</td></tr>`;
+    }).join('');
+})();
+
 // ==================== 模块专属 AI 助手 ====================
 const AI_MODULES = {
   m1: { name: '销售概览', chips: ['这个月整体盘子多大？', '手机订单占比趋势如何？', '10月为什么增长？'],
@@ -528,6 +597,18 @@ const AI_MODULES = {
       { k: ['猪', '猪价'], a: '新牧网猪价指数（9/7）：全国均价 5.51 元/斤、日跌 0.58%；机构全年判断「前低后高」，11–13 元/公斤区间，下半年或迎趋势性反转。<span class="src">来源：新牧网/Mysteel（附原文链接）</span>' },
       { k: ['羊', '关税'], a: '羊肉「淡季不淡」，优质羊肉或冲击 80 元/公斤；进口零关税落地（乌拉圭货源价格优势）。秋冬火锅旺季临近，建议提前锁定内蒙古产区货源。<span class="src">来源：搜狐行情专栏（2026-01）</span>' },
       { k: ['来源', '信息源'], a: '六类来源并列：权威行情平台（新牧网/Mysteel/鸭子网）、官方价格监测（食品商务网）、行业研报（中研普华）、权威媒体与国际来源（搜狐/东方财富/丝路印象等）——每条情报附原文链接可追溯。' }
+    ] }
+  ,
+  m7: { name: '经营分析（公司级）', chips: ['公司级盘子多大？', '哪个品类毛利最好？', '哪些客户贡献最大？'],
+    qa: [
+      { k: ['盘子', '营业额', '多少', '规模'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。'; const k = b.kpi;
+          return `10 月公司级营业额 <b>${(k.amt / 10000).toFixed(0)} 万 HKD</b>（环比 ${k.growth > 0 ? '+' : ''}${k.growth}%、同比 ${k.yoyGrowth > 0 ? '+' : ''}${k.yoyGrowth}%），毛利率 ${k.gpr}%、边际利润率 ${k.mpr}%（扣运费仓储后 ${(k.mp / 10000).toFixed(1)} 万）。覆盖 ${k.custs} 户客户、${k.skus} 个 SKU、${k.channels} 个渠道。<b>注意</b>：这是公司级全渠道口径，与 1–6 模块的 ESHOP 自助下单（10 月 2,865 万）不是同一口径。`; })() },
+      { k: ['毛利', '品类', '利润'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。';
+          const top = [...b.mid].sort((x, y) => y.gpr - x.gpr).slice(0, 3).map(x => `${x.name} ${x.gpr}%`).join('、');
+          const bad = b.mid.filter(x => x.mpr < 0).slice(0, 3).map(x => x.name).join('、');
+          return `毛利率最高：${top}。边际利润为负（物流与费用侵蚀毛利）的中类：${bad || '无'}。凍肉整体毛利率 ${b.big[0].gpr}%，是盘子主体但利薄。`; })() },
+      { k: ['客户', '最大', 'top'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。';
+          return 'Top3 客户：' + b.topCust.slice(0, 3).map(x => `${x.name}（${(x.amt / 10000).toFixed(0)} 万，环比 ${x.growth == null ? '新增' : (x.growth > 0 ? '+' : '') + x.growth + '%'}）`).join('、') + '。客户维度取自客户表，与产品表总额相差 ' + (b.meta.diff / 10000).toFixed(1) + ' 万（无客户归属/内部调拨）。'; })() }
     ] }
 };
 
