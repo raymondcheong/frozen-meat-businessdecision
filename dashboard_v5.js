@@ -568,6 +568,16 @@ renderMkt();
       <td class="num" style="text-align:right">${x.upPct}%（${x.upCount}/${x.custCount}）</td>
       <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust} ${pctTxt(d.chg)}（−${fmt(d.loss)}kg）`).join('<br>') : '—'}</td></tr>`).join('');
 
+  // 判定文案：把「同一属性」替换为具体属性名
+  const verdictTxt = x => {
+    if (!x.downCount) return '无下降客户';
+    if ((x.verdict || '').indexOf('共性') >= 0 && x.topAttr) {
+      return `共性问题（下降集中于 <b>${x.topAttr}</b>，占 ${x.topAttrShare}%）`;
+    }
+    const n = (x.downAttrs || []).length;
+    return `个例（下降客户分散于 ${n} 个属性）`;
+  };
+
   // （4）小类 销量异动 + 归因
   $('tb_biz_smove').innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">9月(kg)</th><th style="text-align:right">10月(kg)</th>' +
     '<th style="text-align:right">环比</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨/下降</th>' +
@@ -581,7 +591,7 @@ renderMkt();
       <td class="num" style="text-align:right"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
       <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
       <td style="font-size:10.5px">${x.downAttrs.length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
-      <td style="font-size:11px">${x.verdict}</td></tr>`).join('');
+      <td style="font-size:11px">${verdictTxt(x)}</td></tr>`).join('');
 })();
 
 // ==================== 模块专属 AI 助手 ====================
