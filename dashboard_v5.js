@@ -475,35 +475,38 @@ $('mkt_q').addEventListener('input', renderMkt);
 renderMkt();
 
 
-// ==================== m7 经营分析（三大类） ====================
-(function () {
-  const B = D.BIZ;
+// ==================== m7 / m8 经营分析（环比 / 同比） ====================
+function renderBiz(B, pre) {
   if (!B) return;
   const k = B.kpi;
+  const $t = id => document.getElementById(id);
   const pctTxt = v => v == null ? '—' : (v > 0 ? '+' : '') + v + '%';
   const col = v => v == null ? '#8A97A6' : (v >= 0 ? C.green : C.red);
   const w = v => (v / 10000).toFixed(1);
+  const empty = (id, msg) => { const el = $t(id); if (el) el.innerHTML = `<tr><td colspan="12" style="text-align:center;color:#8A97A6;padding:16px">${msg}</td></tr>`; };
+  const MISS = '2025-10 客户表缺失，暂无数据';
 
   // 大类
-  const big = B.big.slice(0, 6);
-  reg('ch_biz_big').setOption({
+  const big = (B.big || []).slice(0, 6);
+  const elBig = $t('ch_' + pre + '_big');
+  if (elBig) reg('ch_' + pre + '_big').setOption({
     grid: { left: 60, right: 30, top: 36, bottom: 40 },
     tooltip: { trigger: 'axis', formatter: p => { const x = big[p[0].dataIndex];
-      return `${x.name}<br/>10月 <b>${w(x.amt)} 万</b>｜9月 ${w(x.prev)} 万<br/>环比 ${pctTxt(x.growth)}｜毛利率 ${x.gpr}%`; } },
+      return `${x.name}<br/>本期 <b>${w(x.amt)} 万</b>｜上期 ${w(x.prev)} 万<br/>${pre === 'biz' ? '环比' : '同比'} ${pctTxt(x.growth)}｜毛利率 ${x.gpr}%`; } },
     legend: { top: 4, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
     xAxis: { type: 'category', data: big.map(x => x.name), axisLabel: { fontSize: 11 } },
     yAxis: { type: 'value', name: '万元', axisLabel: { fontSize: 10 } },
     series: [
-      { name: '9月', type: 'bar', barWidth: 18, itemStyle: { color: '#B9CBDD' }, data: big.map(x => +(x.prev / 10000).toFixed(0)) },
-      { name: '10月', type: 'bar', barWidth: 18, itemStyle: { color: C.blue, borderRadius: [4, 4, 0, 0] },
+      { name: pre === 'biz' ? '9月' : '2025-10', type: 'bar', barWidth: 18, itemStyle: { color: '#B9CBDD' }, data: big.map(x => +(x.prev / 10000).toFixed(0)) },
+      { name: pre === 'biz' ? '10月' : '2026-10', type: 'bar', barWidth: 18, itemStyle: { color: C.blue, borderRadius: [4, 4, 0, 0] },
         data: big.map(x => +(x.amt / 10000).toFixed(0)),
         label: { show: true, position: 'top', fontSize: 10, formatter: p => pctTxt(big[p.dataIndex].growth) } }
     ]
   });
 
   // 渠道
-  const ch = B.channel.slice(0, 10).reverse();
-  reg('ch_biz_ch').setOption({
+  const ch = (B.channel || []).slice(0, 10).reverse();
+  if ($t('ch_' + pre + '_ch')) reg('ch_' + pre + '_ch').setOption({
     grid: { left: 6, right: 60, top: 8, bottom: 16, containLabel: true },
     tooltip: { trigger: 'axis', formatter: p => { const x = ch[p[0].dataIndex];
       return `${x.name}<br/>营业额 <b>${w(x.amt)} 万</b>（占 ${x.share}%）<br/>毛利率 ${x.gpr}%`; } },
@@ -514,12 +517,13 @@ renderMkt();
       label: { show: true, position: 'right', fontSize: 9.5, formatter: p => p.value + '万' } }]
   });
 
-  // （1）小类 × 毛利
-  $('tb_biz_small').innerHTML =
-    '<tr><th>小类 / 中类</th><th style="text-align:right">10月营业额</th>' +
-    '<th style="text-align:right">10月销售量(kg)</th><th style="text-align:right">销量环比</th>' +
-    '<th style="text-align:right">毛利 9月 → 10月</th><th style="text-align:right">毛利变化</th></tr>' +
-    B.small.map(x => `<tr>
+  // （1）小类 × 营业额 / 销量 / 毛利
+  const tbSmall = $t('tb_' + pre + '_small');
+  if (tbSmall) tbSmall.innerHTML =
+    '<tr><th>小类 / 中类</th><th style="text-align:right">本期营业额</th>' +
+    '<th style="text-align:right">本期销售量(kg)</th><th style="text-align:right">销量' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
+    '<th style="text-align:right">毛利 上期 → 本期</th><th style="text-align:right">毛利变化</th></tr>' +
+    (B.small || []).map(x => `<tr>
       <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
       <td class="num" style="text-align:right">${w(x.amt)} 万</td>
       <td class="num" style="text-align:right"><b>${fmt(x.qty)}</b></td>
@@ -527,10 +531,12 @@ renderMkt();
       <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b></td>
       <td class="num" style="text-align:right;color:${col(x.gpChg)};font-weight:700">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.gpPct)}</span></td></tr>`).join('');
 
-  // （2）客户 Top10 / 倒数 Top10
+  // （2）客户 Top / 倒数
   const custTbl = (rows, id) => {
-    $(id).innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th><th style="text-align:right">营业额 9→10月</th><th style="text-align:right">环比</th>' +
-      '<th style="text-align:right">毛利 9→10月</th><th style="text-align:right">毛利率</th><th style="text-align:right">10月销量(kg)<br>环比</th></tr>' +
+    const el = $t(id); if (!el) return;
+    if (!rows || !rows.length) { empty(id, MISS); return; }
+    el.innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th><th style="text-align:right">营业额 上期→本期</th><th style="text-align:right">' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
+      '<th style="text-align:right">毛利 上期→本期</th><th style="text-align:right">毛利率</th><th style="text-align:right">本期销量(kg)<br>' + (pre === 'biz' ? '环比' : '同比') + '</th></tr>' +
       rows.map(x => `<tr><td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}<br><span style="color:#8A97A6;font-size:10px">${x.ch || ''}</span></td>
         <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
         <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
@@ -538,61 +544,71 @@ renderMkt();
         <td class="num" style="text-align:right">${x.gpr}%</td>
         <td class="num" style="text-align:right">${fmt(x.qty)}<br><span style="font-size:10.5px;color:${col(x.qtyGrowth)};font-weight:700">${pctTxt(x.qtyGrowth)}</span></td></tr>`).join('');
   };
-  custTbl(B.custProfit.top, 'tb_biz_ctop');
-  custTbl(B.custProfit.bottom, 'tb_biz_cbot');
+  custTbl(B.custProfit && B.custProfit.top, 'tb_' + pre + '_ctop');
+  custTbl(B.custProfit && B.custProfit.bottom, 'tb_' + pre + '_cbot');
 
-  // （2C）量额背离客户
-  $('tb_biz_diverge').innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th>' +
-    '<th style="text-align:right">营业额 9→10月</th><th style="text-align:right">额环比</th>' +
-    '<th style="text-align:right">销量 9→10月(kg)</th><th style="text-align:right">量环比</th>' +
-    '<th style="text-align:right">单价 9→10月</th><th>类型</th><th>品类变化（驱动中类）</th></tr>' +
-    B.diverge.map(x => `<tr>
-      <td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}</td>
-      <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
-      <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
-      <td class="num" style="text-align:right">${fmt(x.qtyPrev)} → <b>${fmt(x.qty)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.qtyPct)};font-weight:700">${pctTxt(x.qtyPct)}</td>
-      <td class="num" style="text-align:right">${x.price9 == null ? '—' : x.price9} → ${x.price10 == null ? '—' : x.price10}${x.pricePct == null ? '' : `<br><span style="font-size:10.5px;color:${col(x.pricePct)}">${pctTxt(x.pricePct)}</span>`}</td>
-      <td style="font-size:11px">${x.kind === '价升量跌' ? '🔺 价升量跌' : '🔻 价跌量升'}</td>
-      <td style="font-size:10.5px">${x.qtyDrivers.map(d => `${d.mid} ${fmt(d.qty9)}→${fmt(d.qty10)}kg（${d.dQty > 0 ? '+' : ''}${fmt(d.dQty)}）`).join('<br>')}${x.amtDriver ? `<br><span style="color:#8A97A6">额变动最大：${x.amtDriver.mid} ${(x.amtDriver.dAmt / 10000).toFixed(1)} 万</span>` : ''}</td></tr>`).join('');
+  // （2C）量额背离
+  const tbDiv = $t('tb_' + pre + '_diverge');
+  if (tbDiv) {
+    if (!B.diverge || !B.diverge.length) empty('tb_' + pre + '_diverge', MISS);
+    else tbDiv.innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th>' +
+      '<th style="text-align:right">营业额 上期→本期</th><th style="text-align:right">额' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
+      '<th style="text-align:right">销量 上期→本期(kg)</th><th style="text-align:right">量' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
+      '<th style="text-align:right">单价 上期→本期</th><th>类型</th><th>品类变化（驱动中类）</th></tr>' +
+      B.diverge.map(x => `<tr>
+        <td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}</td>
+        <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
+        <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
+        <td class="num" style="text-align:right">${fmt(x.qtyPrev)} → <b>${fmt(x.qty)}</b></td>
+        <td class="num" style="text-align:right;color:${col(x.qtyPct)};font-weight:700">${pctTxt(x.qtyPct)}</td>
+        <td class="num" style="text-align:right">${x.price9 == null ? '—' : x.price9} → ${x.price10 == null ? '—' : x.price10}${x.pricePct == null ? '' : `<br><span style="font-size:10.5px;color:${col(x.pricePct)}">${pctTxt(x.pricePct)}</span>`}</td>
+        <td style="font-size:11px">${x.kind === '价升量跌' ? '🔺 价升量跌' : '🔻 价跌量升'}</td>
+        <td style="font-size:10.5px">${x.qtyDrivers.map(d => `${d.mid} ${fmt(d.qty9)}→${fmt(d.qty10)}kg（${d.dQty > 0 ? '+' : ''}${fmt(d.dQty)}）`).join('<br>')}${x.amtDriver ? `<br><span style="color:#8A97A6">额变动最大：${x.amtDriver.mid} ${(x.amtDriver.dAmt / 10000).toFixed(1)} 万</span>` : ''}</td></tr>`).join('');
+  }
 
-  // （3）客户属性 销量异动
-  $('tb_biz_attr').innerHTML = '<tr><th>客户属性</th><th style="text-align:right">9月销量(kg)</th><th style="text-align:right">10月销量(kg)</th>' +
-    '<th style="text-align:right">涨跌幅</th><th>方向</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨占比</th><th>下降客户（缺口）</th></tr>' +
-    B.attrMove.map(x => `<tr><td><b>${x.attr}</b></td>
-      <td class="num" style="text-align:right">${fmt(x.qty9)}</td>
-      <td class="num" style="text-align:right">${fmt(x.qty10)}</td>
-      <td class="num" style="text-align:right;color:${col(x.chg)};font-weight:700">${pctTxt(x.chg)}</td>
-      <td>${x.chg == null ? '—' : (x.chg > 0 ? '📈 上涨' : (x.chg < 0 ? '📉 下跌' : '持平'))}</td>
-      <td class="num" style="text-align:right">${x.custCount}</td>
-      <td class="num" style="text-align:right">${x.upPct}%（${x.upCount}/${x.custCount}）</td>
-      <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust} ${pctTxt(d.chg)}（−${fmt(d.loss)}kg）`).join('<br>') : '—'}</td></tr>`).join('');
+  // （3）客户属性
+  const tbAttr = $t('tb_' + pre + '_attr');
+  if (tbAttr) {
+    if (!B.attrMove || !B.attrMove.length) empty('tb_' + pre + '_attr', MISS);
+    else tbAttr.innerHTML = '<tr><th>客户属性</th><th style="text-align:right">上期销量(kg)</th><th style="text-align:right">本期销量(kg)</th>' +
+      '<th style="text-align:right">涨跌幅</th><th>方向</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨占比</th><th>下降客户（缺口）</th></tr>' +
+      B.attrMove.map(x => `<tr><td><b>${x.attr}</b></td>
+        <td class="num" style="text-align:right">${fmt(x.qty9)}</td>
+        <td class="num" style="text-align:right">${fmt(x.qty10)}</td>
+        <td class="num" style="text-align:right;color:${col(x.chg)};font-weight:700">${pctTxt(x.chg)}</td>
+        <td>${x.chg == null ? '—' : (x.chg > 0 ? '📈 上涨' : (x.chg < 0 ? '📉 下跌' : '持平'))}</td>
+        <td class="num" style="text-align:right">${x.custCount}</td>
+        <td class="num" style="text-align:right">${x.upPct}%（${x.upCount}/${x.custCount}）</td>
+        <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust} ${pctTxt(d.chg)}（−${fmt(d.loss)}kg）`).join('<br>') : '—'}</td></tr>`).join('');
+  }
 
-  // 判定文案：把「同一属性」替换为具体属性名
+  // （4）小类异动
   const verdictTxt = x => {
     if (!x.downCount) return '无下降客户';
-    if ((x.verdict || '').indexOf('共性') >= 0 && x.topAttr) {
-      return `共性问题（下降集中于 <b>${x.topAttr}</b>，占 ${x.topAttrShare}%）`;
-    }
-    const n = (x.downAttrs || []).length;
-    return `个例（下降客户分散于 ${n} 个属性）`;
+    if ((x.verdict || '').indexOf('共性') >= 0 && x.topAttr) return `共性问题（下降集中于 <b>${x.topAttr}</b>，占 ${x.topAttrShare}%）`;
+    return `个例（下降客户分散于 ${(x.downAttrs || []).length} 个属性）`;
   };
+  const tbMove = $t('tb_' + pre + '_smove');
+  if (tbMove) {
+    if (!B.smallMove || !B.smallMove.length) empty('tb_' + pre + '_smove', MISS);
+    else tbMove.innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">上期(kg)</th><th style="text-align:right">本期(kg)</th>' +
+      '<th style="text-align:right">' + (pre === 'biz' ? '环比' : '同比') + '</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨/下降</th>' +
+      '<th>下降客户（属性 · 降幅）</th><th>下降客户属性分布</th><th>判定</th></tr>' +
+      B.smallMove.slice(0, 40).map(x => `<tr>
+        <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
+        <td class="num" style="text-align:right">${fmt(x.qty9)}</td>
+        <td class="num" style="text-align:right">${fmt(x.qty10)}</td>
+        <td class="num" style="text-align:right;color:${col(x.chg)};font-weight:700">${pctTxt(x.chg)}</td>
+        <td class="num" style="text-align:right">${x.custCount}</td>
+        <td class="num" style="text-align:right"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
+        <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
+        <td style="font-size:10.5px">${x.downAttrs.length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
+        <td style="font-size:11px">${verdictTxt(x)}</td></tr>`).join('');
+  }
+}
 
-  // （4）小类 销量异动 + 归因
-  $('tb_biz_smove').innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">9月(kg)</th><th style="text-align:right">10月(kg)</th>' +
-    '<th style="text-align:right">环比</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨/下降</th>' +
-    '<th>下降客户（属性 · 降幅）</th><th>下降客户属性分布</th><th>判定</th></tr>' +
-    B.smallMove.slice(0, 40).map(x => `<tr>
-      <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
-      <td class="num" style="text-align:right">${fmt(x.qty9)}</td>
-      <td class="num" style="text-align:right">${fmt(x.qty10)}</td>
-      <td class="num" style="text-align:right;color:${col(x.chg)};font-weight:700">${pctTxt(x.chg)}</td>
-      <td class="num" style="text-align:right">${x.custCount}</td>
-      <td class="num" style="text-align:right"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
-      <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
-      <td style="font-size:10.5px">${x.downAttrs.length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
-      <td style="font-size:11px">${verdictTxt(x)}</td></tr>`).join('');
-})();
+renderBiz(D.BIZ, 'biz');
+renderBiz(D.BIZ && D.BIZ.yoy, 'yoy');
 
 // ==================== 模块专属 AI 助手 ====================
 const AI_MODULES = {
@@ -656,7 +672,7 @@ const AI_MODULES = {
       { k: ['来源', '信息源'], a: '六类来源并列：权威行情平台（新牧网/Mysteel/鸭子网）、官方价格监测（食品商务网）、行业研报（中研普华）、权威媒体与国际来源（搜狐/东方财富/丝路印象等）——每条情报附原文链接可追溯。' }
     ] }
   ,
-  m7: { name: '经营分析（三大类）', chips: ['三大类盘子多大？', '哪个小类利润最好？', '客户属性销量怎么变？', '哪些小类销量异常？'],
+  m7: { name: '经营分析（环比）', chips: ['三大类盘子多大？', '哪个小类利润最好？', '客户属性销量怎么变？', '哪些小类销量异常？'],
     more: ['某小类毛利多少？', '某客户10月买多少？', '哪些属性在掉量？'],
     qa: [
       { k: ['盘子', '营业额', '规模', '多少'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。'; const k = b.kpi;
@@ -673,6 +689,17 @@ const AI_MODULES = {
           const up = [...b.smallMove].sort((x, y) => (y.chg || 0) - (x.chg || 0)).slice(0, 3).map(x => `${x.small} ${x.chg > 0 ? '+' : ''}${x.chg}%`).join('、');
           const dn = [...b.smallMove].sort((x, y) => (x.chg || 0) - (y.chg || 0)).slice(0, 3).map(x => `${x.small} ${x.chg}%（${x.verdict}）`).join('、');
           return `销量涨幅最大：${up}。跌幅最大：${dn}。判定规则：下降客户 ≥3 户且同一属性占比 ≥60% 记「共性问题」，否则为「个例」。`; })() }
+    ] }
+  ,
+  m8: { name: '经营分析（同比）', chips: ['同比盘子多大？', '哪个大类同比跌最多？', '小类同比谁掉得狠？'],
+    qa: [
+      { k: ['盘子', '营业额', '规模', '同比'], a: (() => { const b = D.BIZ && D.BIZ.yoy; if (!b) return '暂无数据。'; const k = b.kpi;
+          return `2026-10 三大类营业额 <b>${(k.amt / 10000).toFixed(0)} 万</b>，2025-10 为 ${(k.amtPrev / 10000).toFixed(0)} 万，同比 <b>${k.growth > 0 ? '+' : ''}${k.growth}%</b>；毛利 ${(k.gp / 10000).toFixed(0)} 万（毛利率 ${k.gpr}%），销量 ${(k.qty / 10000).toFixed(1)} 万 kg（同比 ${k.qtyGrowth > 0 ? '+' : ''}${k.qtyGrowth}%）。<b>2025-10 客户表缺失</b>，客户级分析暂无数据。`; })() },
+      { k: ['大类', '品类', '跌'], a: (() => { const b = D.BIZ && D.BIZ.yoy; if (!b) return '暂无数据。';
+          return '大类同比：' + b.big.map(x => `${x.name} ${x.growth == null ? '—' : (x.growth > 0 ? '+' : '') + x.growth + '%'}`).join('、') + '。'; })() },
+      { k: ['小类', '掉', '下滑'], a: (() => { const b = D.BIZ && D.BIZ.yoy; if (!b) return '暂无数据。';
+          const dn = [...b.small].filter(x => x.qtyGrowth != null).sort((x, y) => x.qtyGrowth - y.qtyGrowth).slice(0, 3).map(x => `${x.small} ${x.qtyGrowth}%`).join('、');
+          return `销量同比跌幅最大的小类：${dn}。明细见（1）小类表。`; })() }
     ] }
 };
 
