@@ -583,11 +583,6 @@ function renderBiz(B, pre) {
   }
 
   // （4）小类异动
-  const verdictTxt = x => {
-    if (!x.downCount) return '无下降客户';
-    if ((x.verdict || '').indexOf('共性') >= 0 && x.topAttr) return `共性问题（下降集中于 <b>${x.topAttr}</b>，占 ${x.topAttrShare}%）`;
-    return `个例（下降客户分散于 ${(x.downAttrs || []).length} 个属性）`;
-  };
   const tbMove = $t('tb_' + pre + '_smove');
   if (tbMove) {
     if (!B.smallMove || !B.smallMove.length) empty('tb_' + pre + '_smove', MISS);
@@ -603,7 +598,7 @@ function renderBiz(B, pre) {
         <td class="num" style="text-align:right"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
         <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
         <td style="font-size:10.5px">${x.downAttrs.length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
-        <td style="font-size:11px">${verdictTxt(x)}</td></tr>`).join('');
+        <td style="font-size:11px">${x.verdict || '—'}</td></tr>`).join('');
   }
 }
 
