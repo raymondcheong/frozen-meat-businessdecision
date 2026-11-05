@@ -582,6 +582,58 @@ function renderBiz(B, pre) {
         <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust} ${pctTxt(d.chg)}（−${fmt(d.loss)}kg）`).join('<br>') : '—'}</td></tr>`).join('');
   }
 
+  // （5）客单价 / 客单利润（属性级）
+  const tbAov = $t('tb_' + pre + '_aov');
+  if (tbAov) {
+    const A = B.attrAov || [];
+    if (!A.length) empty('tb_' + pre + '_aov', '暂无数据');
+    else {
+      tbAov.innerHTML = '<tr><th>客户属性</th><th style="text-align:right">客户数</th>' +
+        '<th style="text-align:right">客单价均值(HKD)</th><th style="text-align:right">客单利润均值(HKD)</th>' +
+        '<th style="text-align:right">低于均值</th><th style="text-align:right">变动异常</th></tr>' +
+        A.map(x => `<tr><td><b>${x.attr}</b></td>
+          <td class="num" style="text-align:right">${x.custCount}</td>
+          <td class="num" style="text-align:right"><b>${fmt(x.avgAov)}</b></td>
+          <td class="num" style="text-align:right">${fmt(x.avgAop)}</td>
+          <td class="num" style="text-align:right">${x.belowCount} 户</td>
+          <td class="num" style="text-align:right">${x.abnormalCount} 户</td></tr>`).join('');
+    }
+  }
+
+  const tbLow = $t('tb_' + pre + '_aovlow');
+  if (tbLow) {
+    const rows = [];
+    (B.attrAov || []).forEach(a => (a.below || []).forEach(b => rows.push({ attr: a.attr, ...b, avg: a.avgAov })));
+    if (!rows.length) empty('tb_' + pre + '_aovlow', '本期无低于属性均值 70% 的客户');
+    else tbLow.innerHTML = '<tr><th>客户属性</th><th>客户</th><th style="text-align:right">客单价(HKD)</th>' +
+      '<th style="text-align:right">客单利润(HKD)</th><th style="text-align:right">占属性均值</th><th>偏离程度</th></tr>' +
+      rows.map(x => `<tr><td style="font-size:11px">${x.attr}</td><td><b>${x.name}</b></td>
+        <td class="num" style="text-align:right">${fmt(x.aov)}</td>
+        <td class="num" style="text-align:right">${fmt(x.aop)}</td>
+        <td class="num" style="text-align:right;color:${C.red};font-weight:700">${x.ratio}%</td>
+        <td style="font-size:11px">${x.ratio < 40 ? '🔴 严重偏低' : (x.ratio < 55 ? '🟠 明显偏低' : '🟡 略低')}</td></tr>`).join('');
+  }
+
+  const tbAbn = $t('tb_' + pre + '_aovabn');
+  if (tbAbn) {
+    const rows = [];
+    (B.attrAov || []).forEach(a => (a.abnormal || []).forEach(b => rows.push({ attr: a.attr, ...b })));
+    if (!rows.length) empty('tb_' + pre + '_aovabn', '本期无变动幅度 ≥50% 的客户');
+    else tbAbn.innerHTML = '<tr><th>客户属性</th><th>客户</th>' +
+      '<th style="text-align:right">客单价 上期→本期</th><th style="text-align:right">变动</th>' +
+      '<th style="text-align:right">客单利润 上期→本期</th><th style="text-align:right">变动</th><th>异常类型</th></tr>' +
+      rows.map(x => {
+        const t1 = (x.aovPct != null && Math.abs(x.aovPct) >= 50) ? '客单价' : '';
+        const t2 = (x.aopPct != null && Math.abs(x.aopPct) >= 50) ? '客单利润' : '';
+        return `<tr><td style="font-size:11px">${x.attr}</td><td><b>${x.name}</b></td>
+        <td class="num" style="text-align:right">${x.aovPrev == null ? '—' : fmt(x.aovPrev)} → <b>${x.aov == null ? '—' : fmt(x.aov)}</b></td>
+        <td class="num" style="text-align:right;color:${col(x.aovPct)};font-weight:700">${pctTxt(x.aovPct)}</td>
+        <td class="num" style="text-align:right">${x.aopPrev == null ? '—' : fmt(x.aopPrev)} → <b>${x.aop == null ? '—' : fmt(x.aop)}</b></td>
+        <td class="num" style="text-align:right;color:${col(x.aopPct)};font-weight:700">${pctTxt(x.aopPct)}</td>
+        <td style="font-size:11px">${[t1, t2].filter(Boolean).join(' / ')} 大幅变动</td></tr>`;
+      }).join('');
+  }
+
   // （4）小类异动
   const tbMove = $t('tb_' + pre + '_smove');
   if (tbMove) {
