@@ -489,7 +489,7 @@ renderMkt();
   reg('ch_biz_big').setOption({
     grid: { left: 60, right: 30, top: 36, bottom: 40 },
     tooltip: { trigger: 'axis', formatter: p => { const x = big[p[0].dataIndex];
-      return `${x.name}<br/>10月 <b>${w(x.amt)} 万</b>｜9月 ${w(x.prev)} 万<br/>环比 ${pctTxt(x.growth)}｜毛利率 ${x.gpr}%｜边际率 ${x.mpr}%`; } },
+      return `${x.name}<br/>10月 <b>${w(x.amt)} 万</b>｜9月 ${w(x.prev)} 万<br/>环比 ${pctTxt(x.growth)}｜毛利率 ${x.gpr}%`; } },
     legend: { top: 4, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
     xAxis: { type: 'category', data: big.map(x => x.name), axisLabel: { fontSize: 11 } },
     yAxis: { type: 'value', name: '万元', axisLabel: { fontSize: 10 } },
@@ -514,21 +514,15 @@ renderMkt();
       label: { show: true, position: 'right', fontSize: 9.5, formatter: p => p.value + '万' } }]
   });
 
-  // （1）小类 × 三指标
+  // （1）小类 × 毛利
   $('tb_biz_small').innerHTML =
     '<tr><th>小类 / 中类</th><th style="text-align:right">10月营业额</th>' +
-    '<th style="text-align:right">毛利 9月 → 10月</th><th style="text-align:right">毛利变化</th>' +
-    '<th style="text-align:right">边际利润 9月 → 10月</th><th style="text-align:right">边际变化</th>' +
-    '<th style="text-align:right">主营利润 9月 → 10月</th><th style="text-align:right">主营变化</th></tr>' +
+    '<th style="text-align:right">毛利 9月 → 10月</th><th style="text-align:right">毛利变化</th></tr>' +
     B.small.map(x => `<tr>
       <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
       <td class="num" style="text-align:right">${w(x.amt)} 万</td>
       <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.gpChg)};font-weight:700">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.gpPct)}</span></td>
-      <td class="num" style="text-align:right">${w(x.mpPrev)} → <b>${w(x.mp)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.mpChg)};font-weight:700">${x.mpChg > 0 ? '+' : ''}${w(x.mpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.mpPct)}</span></td>
-      <td class="num" style="text-align:right">${w(x.opPrev)} → <b>${w(x.op)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.opChg)};font-weight:700">${x.opChg > 0 ? '+' : ''}${w(x.opChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.opPct)}</span></td></tr>`).join('');
+      <td class="num" style="text-align:right;color:${col(x.gpChg)};font-weight:700">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.gpPct)}</span></td></tr>`).join('');
 
   // （2）客户 Top10 / 倒数 Top10
   const custTbl = (rows, id) => {
@@ -638,11 +632,11 @@ const AI_MODULES = {
     more: ['某小类毛利多少？', '某客户10月买多少？', '哪些属性在掉量？'],
     qa: [
       { k: ['盘子', '营业额', '规模', '多少'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。'; const k = b.kpi;
-          return `10 月三大类（冻肉/水产/终端冻品）营业额 <b>${(k.amt / 10000).toFixed(0)} 万</b>（环比 ${k.growth > 0 ? '+' : ''}${k.growth}%），销量 ${(k.qty / 10000).toFixed(1)} 万 kg（环比 ${k.qtyGrowth > 0 ? '+' : ''}${k.qtyGrowth}%）。毛利 ${(k.gp / 10000).toFixed(0)} 万（毛利率 ${k.gpr}%）、边际利润 ${(k.mp / 10000).toFixed(1)} 万、主营业务利润 ${(k.op / 10000).toFixed(1)} 万（利润率 ${k.opr}%）。覆盖 ${k.custs} 户、${k.skus} 个 SKU、${b.small.length} 个小类。`; })() },
+          return `10 月三大类（冻肉/水产/终端冻品）营业额 <b>${(k.amt / 10000).toFixed(0)} 万</b>（环比 ${k.growth > 0 ? '+' : ''}${k.growth}%），销量 ${(k.qty / 10000).toFixed(1)} 万 kg（环比 ${k.qtyGrowth > 0 ? '+' : ''}${k.qtyGrowth}%）。毛利 ${(k.gp / 10000).toFixed(0)} 万（毛利率 ${k.gpr}%）。覆盖 ${k.custs} 户、${k.skus} 个 SKU、${b.small.length} 个小类。`; })() },
       { k: ['毛利', '利润', '小类'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。';
           const byGp = [...b.small].sort((x, y) => y.gp - x.gp).slice(0, 3).map(x => `${x.small} ${(x.gp / 10000).toFixed(1)} 万`).join('、');
-          const byOp = [...b.small].sort((x, y) => x.op - y.op).slice(0, 3).map(x => `${x.small} ${(x.op / 10000).toFixed(1)} 万`).join('、');
-          return `毛利最高的小类：${byGp}。主营利润最差（最拖累）的小类：${byOp}。三大类整体边际利润 ${(b.kpi.mp / 10000).toFixed(1)} 万、主营业务利润 ${(b.kpi.op / 10000).toFixed(1)} 万，均为负——运费与仓储费侵蚀了毛利。`; })() },
+          const byGpr = [...b.small].filter(x => x.amt > 500000).sort((x, y) => y.gpr - x.gpr).slice(0, 3).map(x => `${x.small} ${x.gpr}%`).join('、');
+          return `毛利额最高的小类：${byGp}。毛利率最高（营业额≥50万）的小类：${byGpr}。三大类整体毛利 ${(b.kpi.gp / 10000).toFixed(0)} 万、毛利率 ${b.kpi.gpr}%。`; })() },
       { k: ['属性', '渠道', '销量', '涨跌'], a: (() => { const b = D.BIZ; if (!b) return '暂无数据。';
           const up = b.attrMove.filter(x => x.chg > 0), dn = b.attrMove.filter(x => x.chg < 0);
           const top = b.attrMove.slice(0, 3).map(x => `${x.attr} ${x.chg > 0 ? '+' : ''}${x.chg}%（上涨客户 ${x.upPct}%）`).join('、');
@@ -698,7 +692,7 @@ function aiCrossSearch(q) {
   // 小类
   const sm = B && B.small ? B.small.find(x => like(x.small, q)) : null;
   if (sm) {
-    out.push(`小类<b>${sm.small}</b>（${sm.mid}）：10 月营业额 ${(sm.amt / 10000).toFixed(1)} 万、毛利 ${(sm.gp / 10000).toFixed(1)} 万、边际利润 ${(sm.mp / 10000).toFixed(1)} 万、主营利润 ${(sm.op / 10000).toFixed(1)} 万；销量环比 ${sm.qtyGrowth == null ? '—' : sm.qtyGrowth + '%'}。详见<b>模块 7（1）</b>与<b>（4）</b>。`);
+    out.push(`小类<b>${sm.small}</b>（${sm.mid}）：10 月营业额 ${(sm.amt / 10000).toFixed(1)} 万、毛利 ${(sm.gp / 10000).toFixed(1)} 万（毛利率 ${sm.gpr}%）；销量环比 ${sm.qtyGrowth == null ? '—' : sm.qtyGrowth + '%'}。详见<b>模块 7（1）</b>与<b>（4）</b>。`);
   }
   // SKU / 断货
   const sk = B && B.topSku ? B.topSku.find(x => like(x.name, q)) : null;
