@@ -517,26 +517,44 @@ renderMkt();
   // （1）小类 × 毛利
   $('tb_biz_small').innerHTML =
     '<tr><th>小类 / 中类</th><th style="text-align:right">10月营业额</th>' +
+    '<th style="text-align:right">10月销售量(kg)</th><th style="text-align:right">销量环比</th>' +
     '<th style="text-align:right">毛利 9月 → 10月</th><th style="text-align:right">毛利变化</th></tr>' +
     B.small.map(x => `<tr>
       <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
       <td class="num" style="text-align:right">${w(x.amt)} 万</td>
+      <td class="num" style="text-align:right"><b>${fmt(x.qty)}</b></td>
+      <td class="num" style="text-align:right;color:${col(x.qtyGrowth)};font-weight:700">${pctTxt(x.qtyGrowth)}</td>
       <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b></td>
       <td class="num" style="text-align:right;color:${col(x.gpChg)};font-weight:700">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.gpPct)}</span></td></tr>`).join('');
 
   // （2）客户 Top10 / 倒数 Top10
   const custTbl = (rows, id) => {
     $(id).innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th><th style="text-align:right">营业额 9→10月</th><th style="text-align:right">环比</th>' +
-      '<th style="text-align:right">毛利 9→10月</th><th style="text-align:right">毛利率</th><th style="text-align:right">销量(kg) 环比</th></tr>' +
+      '<th style="text-align:right">毛利 9→10月</th><th style="text-align:right">毛利率</th><th style="text-align:right">10月销量(kg)<br>环比</th></tr>' +
       rows.map(x => `<tr><td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}<br><span style="color:#8A97A6;font-size:10px">${x.ch || ''}</span></td>
         <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
         <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
         <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b> 万</td>
         <td class="num" style="text-align:right">${x.gpr}%</td>
-        <td class="num" style="text-align:right;color:${col(x.qtyGrowth)}">${pctTxt(x.qtyGrowth)}</td></tr>`).join('');
+        <td class="num" style="text-align:right">${fmt(x.qty)}<br><span style="font-size:10.5px;color:${col(x.qtyGrowth)};font-weight:700">${pctTxt(x.qtyGrowth)}</span></td></tr>`).join('');
   };
   custTbl(B.custProfit.top, 'tb_biz_ctop');
   custTbl(B.custProfit.bottom, 'tb_biz_cbot');
+
+  // （2C）量额背离客户
+  $('tb_biz_diverge').innerHTML = '<tr><th>客户</th><th>属性（ESHOP）</th>' +
+    '<th style="text-align:right">营业额 9→10月</th><th style="text-align:right">额环比</th>' +
+    '<th style="text-align:right">销量 9→10月(kg)</th><th style="text-align:right">量环比</th>' +
+    '<th style="text-align:right">单价 9→10月</th><th>类型</th><th>品类变化（驱动中类）</th></tr>' +
+    B.diverge.map(x => `<tr>
+      <td><b>${x.name}</b></td><td style="font-size:10.5px">${x.attr}</td>
+      <td class="num" style="text-align:right">${w(x.amtPrev)} → <b>${w(x.amt)}</b> 万</td>
+      <td class="num" style="text-align:right;color:${col(x.amtPct)};font-weight:700">${pctTxt(x.amtPct)}</td>
+      <td class="num" style="text-align:right">${fmt(x.qtyPrev)} → <b>${fmt(x.qty)}</b></td>
+      <td class="num" style="text-align:right;color:${col(x.qtyPct)};font-weight:700">${pctTxt(x.qtyPct)}</td>
+      <td class="num" style="text-align:right">${x.price9 == null ? '—' : x.price9} → ${x.price10 == null ? '—' : x.price10}${x.pricePct == null ? '' : `<br><span style="font-size:10.5px;color:${col(x.pricePct)}">${pctTxt(x.pricePct)}</span>`}</td>
+      <td style="font-size:11px">${x.kind === '价升量跌' ? '🔺 价升量跌' : '🔻 价跌量升'}</td>
+      <td style="font-size:10.5px">${x.qtyDrivers.map(d => `${d.mid} ${fmt(d.qty9)}→${fmt(d.qty10)}kg（${d.dQty > 0 ? '+' : ''}${fmt(d.dQty)}）`).join('<br>')}${x.amtDriver ? `<br><span style="color:#8A97A6">额变动最大：${x.amtDriver.mid} ${(x.amtDriver.dAmt / 10000).toFixed(1)} 万</span>` : ''}</td></tr>`).join('');
 
   // （3）客户属性 销量异动
   $('tb_biz_attr').innerHTML = '<tr><th>客户属性</th><th style="text-align:right">9月销量(kg)</th><th style="text-align:right">10月销量(kg)</th>' +
