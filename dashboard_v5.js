@@ -517,19 +517,36 @@ function renderBiz(B, pre) {
       label: { show: true, position: 'right', fontSize: 9.5, formatter: p => p.value + '万' } }]
   });
 
-  // （1）小类 × 营业额 / 销量 / 毛利
+  // （1）中类 → 小类 两级
   const tbSmall = $t('tb_' + pre + '_small');
-  if (tbSmall) tbSmall.innerHTML =
-    '<tr><th>小类 / 中类</th><th style="text-align:right">本期营业额</th>' +
-    '<th style="text-align:right">本期销售量(kg)</th><th style="text-align:right">销量' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
-    '<th style="text-align:right">毛利 上期 → 本期</th><th style="text-align:right">毛利变化</th></tr>' +
-    (B.small || []).map(x => `<tr>
-      <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
-      <td class="num" style="text-align:right">${w(x.amt)} 万</td>
-      <td class="num" style="text-align:right"><b>${fmt(x.qty)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.qtyGrowth)};font-weight:700">${pctTxt(x.qtyGrowth)}</td>
-      <td class="num" style="text-align:right">${w(x.gpPrev)} → <b>${w(x.gp)}</b></td>
-      <td class="num" style="text-align:right;color:${col(x.gpChg)};font-weight:700">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(x.gpPct)}</span></td></tr>`).join('');
+  if (tbSmall) {
+    const MB = B.midBlock || [];
+    if (!MB.length) empty('tb_' + pre + '_small', '暂无数据');
+    else {
+      let h = '<tr><th>中类 / 小类</th><th style="text-align:right">本期营业额</th>' +
+        '<th style="text-align:right">本期销售量(kg)</th><th style="text-align:right">销量' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
+        '<th style="text-align:right">毛利 上期 → 本期</th><th style="text-align:right">毛利变化</th></tr>';
+      MB.forEach(m => {
+        h += `<tr style="background:#EEF4F9;font-weight:700">
+          <td>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${m.smallCount} 个小类</span></td>
+          <td class="num" style="text-align:right">${w(m.amt)} 万</td>
+          <td class="num" style="text-align:right">${fmt(m.qty)}</td>
+          <td class="num" style="text-align:right;color:${col(m.qtyGrowth)}">${pctTxt(m.qtyGrowth)}</td>
+          <td class="num" style="text-align:right">${w(m.gpPrev)} → ${w(m.gp)}</td>
+          <td class="num" style="text-align:right;color:${col(m.gpChg)}">${m.gpChg > 0 ? '+' : ''}${w(m.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(m.gpPct)}</span></td></tr>`;
+        (m.smalls || []).forEach(x => {
+          h += `<tr>
+            <td style="padding-left:26px;font-size:11.5px">↳ ${x.small}</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${w(x.amt)} 万</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px;color:${col(x.qtyGrowth)}">${pctTxt(x.qtyGrowth)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${w(x.gpPrev)} → ${w(x.gp)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px;color:${col(x.gpChg)}">${x.gpChg > 0 ? '+' : ''}${w(x.gpChg)} 万<br><span style="font-size:10px">${pctTxt(x.gpPct)}</span></td></tr>`;
+        });
+      });
+      tbSmall.innerHTML = h;
+    }
+  }
 
   // （2）客户 Top / 倒数
   const custTbl = (rows, id) => {
@@ -634,23 +651,41 @@ function renderBiz(B, pre) {
       }).join('');
   }
 
-  // （4）小类异动
+  // （4）中类 → 小类 两级（销量异动）
   const tbMove = $t('tb_' + pre + '_smove');
   if (tbMove) {
-    if (!B.smallMove || !B.smallMove.length) empty('tb_' + pre + '_smove', MISS);
-    else tbMove.innerHTML = '<tr><th>小类 / 中类</th><th style="text-align:right">上期(kg)</th><th style="text-align:right">本期(kg)</th>' +
-      '<th style="text-align:right">' + (pre === 'biz' ? '环比' : '同比') + '</th><th style="text-align:right">客户数</th><th style="text-align:right">上涨/下降</th>' +
-      '<th>下降客户（属性 · 降幅）</th><th>下降客户属性分布</th><th>判定</th></tr>' +
-      B.smallMove.slice(0, 40).map(x => `<tr>
-        <td><b>${x.small}</b><br><span style="color:#8A97A6;font-size:10.5px">${x.mid}</span></td>
-        <td class="num" style="text-align:right">${fmt(x.qty9)}</td>
-        <td class="num" style="text-align:right">${fmt(x.qty10)}</td>
-        <td class="num" style="text-align:right;color:${col(x.chg)};font-weight:700">${pctTxt(x.chg)}</td>
-        <td class="num" style="text-align:right">${x.custCount}</td>
-        <td class="num" style="text-align:right"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
-        <td style="font-size:10.5px">${x.downTop.length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
-        <td style="font-size:10.5px">${x.downAttrs.length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
-        <td style="font-size:11px">${x.verdict || '—'}</td></tr>`).join('');
+    const MM = B.midMove || [];
+    if (!MM.length) empty('tb_' + pre + '_smove', '暂无数据');
+    else {
+      let h = '<tr><th>中类 / 小类</th><th style="text-align:right">上期(kg)</th><th style="text-align:right">本期(kg)</th>' +
+        '<th style="text-align:right">' + (pre === 'biz' ? '环比' : '同比') + '</th><th style="text-align:right">客户数</th>' +
+        '<th style="text-align:right">上涨/下降</th><th>下降客户（属性 · 降幅）</th><th>下降客户属性分布</th><th>判定</th></tr>';
+      MM.forEach(m => {
+        h += `<tr style="background:#EEF4F9;font-weight:700">
+          <td>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${(m.smalls || []).length} 个小类</span></td>
+          <td class="num" style="text-align:right">${fmt(m.qty9)}</td>
+          <td class="num" style="text-align:right">${fmt(m.qty10)}</td>
+          <td class="num" style="text-align:right;color:${col(m.chg)}">${pctTxt(m.chg)}</td>
+          <td class="num" style="text-align:right">${m.custCount}</td>
+          <td class="num" style="text-align:right"><span style="color:${C.green}">↑${m.upCount}</span> / <span style="color:${C.red}">↓${m.downCount}</span></td>
+          <td style="font-size:10.5px;font-weight:400">${(m.downTop || []).length ? m.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr || '—'}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
+          <td style="font-size:10.5px;font-weight:400">${(m.downAttrs || []).length ? m.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
+          <td style="font-size:11px;font-weight:400">${m.verdict || '—'}</td></tr>`;
+        (m.smalls || []).forEach(x => {
+          h += `<tr>
+            <td style="padding-left:26px;font-size:11.5px">↳ ${x.small}</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty9)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty10)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px;color:${col(x.chg)}">${pctTxt(x.chg)}</td>
+            <td class="num" style="text-align:right;font-size:11.5px">${x.custCount}</td>
+            <td class="num" style="text-align:right;font-size:11.5px"><span style="color:${C.green}">↑${x.upCount}</span> / <span style="color:${C.red}">↓${x.downCount}</span></td>
+            <td style="font-size:10.5px">${(x.downTop || []).length ? x.downTop.map(d => `${d.cust}<span style="color:#8A97A6">（${d.attr || '—'}·${pctTxt(d.chg)}）</span>`).join('<br>') : '—'}</td>
+            <td style="font-size:10.5px">${(x.downAttrs || []).length ? x.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
+            <td style="font-size:10.5px">${x.verdict || '—'}</td></tr>`;
+        });
+      });
+      tbMove.innerHTML = h;
+    }
   }
 }
 
