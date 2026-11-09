@@ -137,6 +137,11 @@
   .ai-more-title{font-size:11px;color:#7A8899;margin:6px 0 6px;font-weight:700}
   .ai-chip2{background:#EAF3FA;border-color:#CFE3F2;color:#0B5E8F}
   .ai-chip2:hover{background:#DCEDF9}
+  .midrow{cursor:pointer;background:#EEF4F9;font-weight:700;user-select:none}
+  .midrow:hover{background:#E3EEF6}
+  .midrow .tg{display:inline-block;width:14px;color:#0B5E8F;font-weight:700;margin-right:2px}
+  .subrow{background:#FBFDFE}
+  .subrow:hover{background:#F2F8FC}
   .src-link{max-width:186px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
   .src-date{display:block;margin-top:4px;color:#8494A6;font-size:11px}
 </style>
@@ -390,7 +395,7 @@
 
   <div class="card c12">
     <h3>（1）中类 × 营业额 / 销售量 / 毛利：9月 vs 10月（含小类明细）</h3>
-    <div class="hint">按 10 月营业额降序排列各中类（汇总行），其下缩进列出该中类内各小类明细。<b>10 月销售量</b>＝该小类 10 月 KG 行销量合计；<b>销量环比</b>＝(10 月销量−9 月销量)÷9 月销量；毛利"变化"为 10 月减 9 月的绝对值差，括号内为变动率</div>
+    <div class="hint">按 10 月营业额降序排列各中类（汇总行）；<b>点击中类行可展开/收起其下的小类明细</b>（默认收起，▶ 收起 / ▼ 展开）。<b>10 月销售量</b>＝该小类 10 月 KG 行销量合计；<b>销量环比</b>＝(10 月销量−9 月销量)÷9 月销量；毛利"变化"为 10 月减 9 月的绝对值差，括号内为变动率</div>
     <div class="scroll" style="max-height:520px;overflow-y:auto"><table class="tbl" id="tb_biz_small"></table></div>
   </div>
 
@@ -421,7 +426,7 @@
 
   <div class="card c12">
     <h3>（4）中类维度：销量 10月 vs 9月 异常变动与属性归因（含小类明细）</h3>
-    <div class="hint">按变动幅度排序；下降客户按其 ESHOP「客戶屬性」归因，并判定属于「共性问题」还是「个例」</div>
+    <div class="hint">按中类销量变动幅度排序；<b>点击中类行可展开/收起其下的小类明细</b>；下降客户按其 ESHOP「客戶屬性」归因，并判定「共性问题」或「个例」</div>
     <div class="scroll" style="max-height:560px;overflow-y:auto"><table class="tbl" id="tb_biz_smove"></table></div>
   </div>
 
@@ -489,7 +494,7 @@
 
   <div class="card c12">
     <h3>（4）中类维度：销量 2026-10 vs 2025-10 异常变动与属性归因（含小类明细）</h3>
-    <div class="hint">按变动幅度排序；下降客户按其 ESHOP「客戶屬性」归因，并判定属于「共性问题」还是「个例」</div>
+    <div class="hint">按中类销量变动幅度排序；<b>点击中类行可展开/收起其下的小类明细</b>；下降客户按其 ESHOP「客戶屬性」归因，并判定「共性问题」或「个例」</div>
     <div class="scroll" style="max-height:560px;overflow-y:auto"><table class="tbl" id="tb_yoy_smove"></table></div>
   </div>
 

@@ -517,7 +517,7 @@ function renderBiz(B, pre) {
       label: { show: true, position: 'right', fontSize: 9.5, formatter: p => p.value + '万' } }]
   });
 
-  // （1）中类 → 小类 两级
+  // （1）中类 → 小类 两级（可折叠）
   const tbSmall = $t('tb_' + pre + '_small');
   if (tbSmall) {
     const MB = B.midBlock || [];
@@ -527,16 +527,17 @@ function renderBiz(B, pre) {
         '<th style="text-align:right">本期销售量(kg)</th><th style="text-align:right">销量' + (pre === 'biz' ? '环比' : '同比') + '</th>' +
         '<th style="text-align:right">毛利 上期 → 本期</th><th style="text-align:right">毛利变化</th></tr>';
       MB.forEach(m => {
-        h += `<tr style="background:#EEF4F9;font-weight:700">
-          <td>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${m.smallCount} 个小类</span></td>
+        const k = pre + '_sm_' + m.mid;
+        h += `<tr class="midrow" data-k="${k}" data-open="0">
+          <td><span class="tg">▶</span>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${m.smallCount} 个小类（点击展开）</span></td>
           <td class="num" style="text-align:right">${w(m.amt)} 万</td>
           <td class="num" style="text-align:right">${fmt(m.qty)}</td>
           <td class="num" style="text-align:right;color:${col(m.qtyGrowth)}">${pctTxt(m.qtyGrowth)}</td>
           <td class="num" style="text-align:right">${w(m.gpPrev)} → ${w(m.gp)}</td>
           <td class="num" style="text-align:right;color:${col(m.gpChg)}">${m.gpChg > 0 ? '+' : ''}${w(m.gpChg)} 万<br><span style="font-weight:400;font-size:10.5px">${pctTxt(m.gpPct)}</span></td></tr>`;
         (m.smalls || []).forEach(x => {
-          h += `<tr>
-            <td style="padding-left:26px;font-size:11.5px">↳ ${x.small}</td>
+          h += `<tr class="subrow" data-k="${k}" style="display:none">
+            <td style="padding-left:30px;font-size:11.5px;color:#3D5166">${x.small}</td>
             <td class="num" style="text-align:right;font-size:11.5px">${w(x.amt)} 万</td>
             <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty)}</td>
             <td class="num" style="text-align:right;font-size:11.5px;color:${col(x.qtyGrowth)}">${pctTxt(x.qtyGrowth)}</td>
@@ -651,7 +652,7 @@ function renderBiz(B, pre) {
       }).join('');
   }
 
-  // （4）中类 → 小类 两级（销量异动）
+  // （4）中类 → 小类 两级（销量异动，可折叠）
   const tbMove = $t('tb_' + pre + '_smove');
   if (tbMove) {
     const MM = B.midMove || [];
@@ -661,8 +662,10 @@ function renderBiz(B, pre) {
         '<th style="text-align:right">' + (pre === 'biz' ? '环比' : '同比') + '</th><th style="text-align:right">客户数</th>' +
         '<th style="text-align:right">上涨/下降</th><th>下降客户（属性 · 降幅）</th><th>下降客户属性分布</th><th>判定</th></tr>';
       MM.forEach(m => {
-        h += `<tr style="background:#EEF4F9;font-weight:700">
-          <td>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${(m.smalls || []).length} 个小类</span></td>
+        const k = pre + '_mv_' + m.mid;
+        const n = (m.smalls || []).length;
+        h += `<tr class="midrow" data-k="${k}" data-open="0">
+          <td><span class="tg">▶</span>${m.mid}<span style="font-weight:400;color:#8A97A6;font-size:10.5px"> · ${n} 个小类${n ? '（点击展开）' : ''}</span></td>
           <td class="num" style="text-align:right">${fmt(m.qty9)}</td>
           <td class="num" style="text-align:right">${fmt(m.qty10)}</td>
           <td class="num" style="text-align:right;color:${col(m.chg)}">${pctTxt(m.chg)}</td>
@@ -672,8 +675,8 @@ function renderBiz(B, pre) {
           <td style="font-size:10.5px;font-weight:400">${(m.downAttrs || []).length ? m.downAttrs.map(a => `${a[0]} ${a[1]}户`).join('<br>') : '—'}</td>
           <td style="font-size:11px;font-weight:400">${m.verdict || '—'}</td></tr>`;
         (m.smalls || []).forEach(x => {
-          h += `<tr>
-            <td style="padding-left:26px;font-size:11.5px">↳ ${x.small}</td>
+          h += `<tr class="subrow" data-k="${k}" style="display:none">
+            <td style="padding-left:30px;font-size:11.5px;color:#3D5166">${x.small}</td>
             <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty9)}</td>
             <td class="num" style="text-align:right;font-size:11.5px">${fmt(x.qty10)}</td>
             <td class="num" style="text-align:right;font-size:11.5px;color:${col(x.chg)}">${pctTxt(x.chg)}</td>
@@ -688,6 +691,20 @@ function renderBiz(B, pre) {
     }
   }
 }
+
+// 折叠交互（事件委托，兼容重渲染）
+document.addEventListener('click', function (e) {
+  const tr = e.target.closest && e.target.closest('tr.midrow');
+  if (!tr) return;
+  const k = tr.dataset.k;
+  const opened = tr.dataset.open === '1';
+  tr.dataset.open = opened ? '0' : '1';
+  const tg = tr.querySelector('.tg');
+  if (tg) tg.textContent = opened ? '▶' : '▼';
+  document.querySelectorAll('tr.subrow[data-k="' + k + '"]').forEach(function (r) {
+    r.style.display = opened ? 'none' : '';
+  });
+});
 
 renderBiz(D.BIZ, 'biz');
 renderBiz(D.BIZ && D.BIZ.yoy, 'yoy');
