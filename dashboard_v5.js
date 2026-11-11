@@ -22,7 +22,7 @@ const charts = {};
 function reg(id) { charts[id] = mk(id); return charts[id]; }
 
 // ==================== m1 销售概览 ====================
-const months = M.monthly.map(x => x.m.slice(2));
+const months = M.monthly.map(x => x.m.slice(2) + (x.m === '2026-11' ? '*' : ''));
 reg('ch_month').setOption({
   grid: { left: 70, right: 60, top: 40, bottom: 40 },
   tooltip: { trigger: 'axis' },
